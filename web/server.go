@@ -1,13 +1,14 @@
 package web
 
 import (
-	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	"venera/config"
+	"venera/data"
 	"venera/logging"
+	"venera/processes"
 )
 
 var server *http.Server
@@ -15,30 +16,61 @@ var server *http.Server
 // StartWebServer запускает HTTP сервер
 func StartWebServer() {
 	port := config.GlobalConfig.Generic.WebServerPort
+	addr := fmt.Sprintf(":%d", port)
+
 	mux := http.NewServeMux()
 	
-	SetupRoutes(mux)
+	// API routes
+	mux.HandleFunc("/api/processes", handleProcesses)
+	mux.HandleFunc("/api/data", handleData)
+	
+	// Статика
+	fs := http.FileServer(http.Dir("web/static"))
+	mux.Handle("/", fs)
 
 	server = &http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
+		Addr:    addr,
 		Handler: mux,
 	}
 
 	go func() {
-		logging.Log.Infof("Веб-сервер запущен на порту %d", port)
+		logging.Log.Infof("Запуск веб-сервера на %s", addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logging.Log.Fatalf("Ошибка веб-сервера: %v", err)
 		}
 	}()
 }
 
-// StopWebServer останавливает HTTP сервер
+// StopWebServer останавливает веб-сервер
 func StopWebServer() {
 	if server != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := server.Shutdown(ctx); err != nil {
-			logging.Log.Errorf("Ошибка при остановке веб-сервера: %v", err)
-		}
+		_ = server.Close()
 	}
+}
+
+// handleProcesses обрабатывает статусы процессов
+func handleProcesses(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	procs := processes.GetAllProcesses()
+	json.NewEncoder(w).Encode(procs)
+}
+
+// handleData возвращает топ данных (витрина) из DragonflyDB
+func handleData(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	sourceID := r.URL.Query().Get("source")
+	if sourceID == "" {
+		http.Error(w, "source parametr required", http.StatusBadRequest)
+		return
+	}
+
+	// Для упрощения показываем кол-во в очереди
+	len, _ := data.GetListLength(sourceID)
+	
+	resp := map[string]interface{}{
+		"source": sourceID,
+		"queue":  len,
+	}
+	
+	json.NewEncoder(w).Encode(resp)
 }

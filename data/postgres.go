@@ -26,7 +26,6 @@ func InitPostgreSQL() error {
 		return fmt.Errorf("ошибка парсинга строки подключения к PostgreSQL: %v", err)
 	}
 
-	// Повторные попытки подключения
 	delay := 1 * time.Second
 	for i := 0; i < 5; i++ {
 		PgPool, err = pgxpool.NewWithConfig(context.Background(), poolConfig)
@@ -56,37 +55,29 @@ func InsertBatch(sourceID string, entries []DataEntry) error {
 	}
 
 	ctx := context.Background()
-	tx, err := PgPool.BeginTx(ctx, pgx.TxOptions{})
-	if err != nil {
-		return fmt.Errorf("ошибка начала транзакции: %v", err)
-	}
-	defer tx.Rollback(ctx)
-
+	
+	// В PostgreSQL 15+ можно использовать MERGE или делать UPSERT через временную таблицу для скорости.
+	// Для совместимости используем Batch с ON CONFLICT.
 	batch := &pgx.Batch{}
 
-	// SQL-запрос (UPSERT)
+	// SQL-запрос (UPSERT). 
+	// Используем to_timestamp($4::double precision) для сохранения миллисекунд
 	query := `
 		INSERT INTO venera_data (source, key, value, date_first, date_last)
-		VALUES ($1, $2, $3, to_timestamp($4), to_timestamp($4))
+		VALUES ($1, $2, $3, to_timestamp($4::double precision), to_timestamp($4::double precision))
 		ON CONFLICT (source, key, value) 
-		DO UPDATE SET date_last = GREATEST(venera_data.date_last, to_timestamp($4));
+		DO UPDATE SET date_last = GREATEST(venera_data.date_last, to_timestamp($4::double precision));
 	`
 
 	for _, entry := range entries {
-		// Преобразуем мс в секунды для to_timestamp
 		tsSeconds := float64(entry.Timestamp) / 1000.0
 		batch.Queue(query, entry.Source, entry.Key, entry.Value, tsSeconds)
 	}
 
-	br := tx.SendBatch(ctx, batch)
-	err = br.Close()
+	br := PgPool.SendBatch(ctx, batch)
+	err := br.Close()
 	if err != nil {
 		return fmt.Errorf("ошибка выполнения пакета запросов: %v", err)
-	}
-
-	err = tx.Commit(ctx)
-	if err != nil {
-		return fmt.Errorf("ошибка коммита транзакции: %v", err)
 	}
 
 	return nil

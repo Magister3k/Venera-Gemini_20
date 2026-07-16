@@ -1,0 +1,35 @@
+[Generic]
+  mode = "tray"
+  auto_start = false
+  max_processes = 20
+  web_server_port = 8080
+  log_rotation_days = 7
+
+[Paths]
+  podman_exe = "podman"
+  tshark_exe = "tshark"
+  filter_list = "settings/generic.flt"
+  control_list = "settings/generic.ctr"
+  alerts_list = "settings/generic.alr"
+  db_image = "docker.io/dragonflydb/dragonfly"
+  db_backup_dir = "backups"
+
+[DragonflyDB]
+  host = "127.0.0.1"
+  port = 6379
+  password = ""
+  batch_size = 1000
+  timeout = "5s"
+
+[PostgreSQL]
+  host = "127.0.0.1"
+  port = 5432
+  user = "postgres"
+  password = "password"
+  database = "Venera"
+  ssl_mode = "disable"
+
+[System]
+  disk_warning_threshold = 15.0
+  disk_critical_threshold = 5.0
+  ram_critical_threshold = 5.0

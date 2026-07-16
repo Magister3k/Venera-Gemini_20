@@ -9,6 +9,8 @@ import (
 
 	"venera/config"
 	"venera/data"
+	"venera/diagnose"
+	"venera/filter"
 	"venera/logging"
 	"venera/processes"
 	"venera/services"
@@ -21,13 +23,12 @@ var (
 )
 
 func main() {
-	// 15. Добавить параметры командной строки
 	showHelp := flag.Bool("help", false, "Показать справку")
 	showHelpShort := flag.Bool("h", false, "Показать справку")
 	showVersion := flag.Bool("version", false, "Показать версию программы")
 	showVersionShort := flag.Bool("v", false, "Показать версию программы")
-	diagnose := flag.Bool("diagnose", false, "Запустить диагностику системы")
-	diagnoseShort := flag.Bool("d", false, "Запустить диагностику системы")
+	runDiagnose := flag.Bool("diagnose", false, "Запустить диагностику системы")
+	runDiagnoseShort := flag.Bool("d", false, "Запустить диагностику системы")
 	
 	flag.Parse()
 
@@ -41,10 +42,9 @@ func main() {
 		os.Exit(0)
 	}
 
-	if *diagnose || *diagnoseShort {
-		fmt.Println("Запуск модуля диагностики...")
-		// Здесь вызов diagnose.RunConsoleDiagnosis()
-		os.Exit(0)
+	// Загрузка конфигурации
+	if err := config.LoadConfig(); err != nil {
+		fmt.Printf("Ошибка загрузки конфигурации: %v\n", err)
 	}
 
 	// Инициализация логгера
@@ -53,9 +53,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Загрузка конфигурации
-	if err := config.LoadConfig(); err != nil {
-		logging.Log.Fatalf("Ошибка загрузки конфигурации: %v", err)
+	if *runDiagnose || *runDiagnoseShort {
+		diagnose.RunConsoleDiagnosis()
+		os.Exit(0)
 	}
 
 	// Загрузка процессов
@@ -63,11 +63,10 @@ func main() {
 		logging.Log.Warnf("Ошибка загрузки списка процессов: %v", err)
 	}
 
-	// Загрузка списков (п.2.5, п.2.6)
-	_ = data.LoadFilterList()
-	_ = data.LoadControlList()
+	// Загрузка списков фильтрации и контроля (без блокировок)
+	_ = filter.LoadFilterList()
+	_ = filter.LoadControlList()
 
-	// Режим запуска (Tray или Service)
 	mode := config.GlobalConfig.Generic.Mode
 
 	if mode == "service" {
@@ -81,9 +80,7 @@ func main() {
 	}
 }
 
-// startApplication инициализирует базы данных и запускает веб-сервер
 func startApplication() {
-	// Подключение к БД (п.2.16)
 	if err := data.InitDragonflyDB(); err != nil {
 		logging.Log.Errorf("Ошибка БД Dragonfly: %v", err)
 	}
@@ -92,7 +89,6 @@ func startApplication() {
 		logging.Log.Errorf("Ошибка БД PostgreSQL: %v", err)
 	}
 
-	// Автостарт процессов, если нужно
 	if config.GlobalConfig.Generic.AutoStart {
 		for _, p := range processes.GetAllProcesses() {
 			if err := processes.Manager.StartProcess(p); err != nil {
@@ -101,7 +97,6 @@ func startApplication() {
 		}
 	}
 
-	// Запуск веб-сервера
 	web.StartWebServer()
 
 	// Graceful shutdown по сигналам OS
@@ -116,17 +111,15 @@ func startApplication() {
 }
 
 func stopApplication() {
-	// Остановка веб-сервера
 	web.StopWebServer()
 	
-	// Остановка всех процессов
+	// Безопасная остановка всех запущенных процессов Tshark (Job Objects) и Горутин
 	for _, p := range processes.GetAllProcesses() {
 		if p.Status == "running" {
 			_ = processes.Manager.StopProcess(p.ID)
 		}
 	}
 	
-	// Закрытие подключений
 	data.CloseDragonflyDB()
 	data.ClosePostgreSQL()
 	

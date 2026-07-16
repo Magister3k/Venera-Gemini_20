@@ -2,60 +2,55 @@ package services
 
 import (
 	"fmt"
-
-	"golang.org/x/sys/windows/svc"
 	"venera/logging"
+
+	"github.com/kardianos/service"
 )
 
-type veneraService struct{}
-
-func (m *veneraService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
-	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
-
-	changes <- svc.Status{State: svc.StartPending}
-	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
-
-	logging.Log.Infof("Служба VeneraSrv запущена")
-
-	// Главный цикл службы
-loop:
-	for c := range r {
-		switch c.Cmd {
-		case svc.Interrogate:
-			changes <- c.CurrentStatus
-		case svc.Stop, svc.Shutdown:
-			logging.Log.Infof("Получен сигнал остановки службы")
-			break loop
-		default:
-			logging.Log.Warnf("Неожиданный сигнал для службы: %v", c)
-		}
-	}
-
-	changes <- svc.Status{State: svc.StopPending}
-	return
+type program struct {
+	startFunc func()
+	stopFunc  func()
 }
 
-// RunService запускает приложение в режиме службы Windows
+func (p *program) Start(s service.Service) error {
+	logging.Log.Info("Запуск службы Venera...")
+	go p.startFunc()
+	return nil
+}
+
+func (p *program) Stop(s service.Service) error {
+	logging.Log.Info("Остановка службы Venera...")
+	p.stopFunc()
+	return nil
+}
+
+// RunService настраивает и запускает приложение как службу Windows
 func RunService(startApp func(), stopApp func()) error {
-	isInteractive, err := svc.IsAnInteractiveSession()
-	if err != nil {
-		return fmt.Errorf("ошибка определения сессии: %v", err)
+	svcConfig := &service.Config{
+		Name:        "VeneraService",
+		DisplayName: "Venera Collector",
+		Description: "Система сбора идентификаторов в потоке пакетных данных.",
 	}
 
-	if isInteractive {
-		return fmt.Errorf("приложение не может быть запущено как служба в интерактивной сессии")
+	prg := &program{
+		startFunc: startApp,
+		stopFunc:  stopApp,
 	}
 
-	// Запускаем основную логику приложения
-	go startApp()
-
-	err = svc.Run("VeneraSrv", &veneraService{})
-	
-	// Останавливаем приложение при выходе
-	stopApp()
-	
+	s, err := service.New(prg, svcConfig)
 	if err != nil {
-		return fmt.Errorf("ошибка выполнения службы: %v", err)
+		return fmt.Errorf("ошибка создания службы: %v", err)
+	}
+
+	logger, err := s.Logger(nil)
+	if err != nil {
+		return fmt.Errorf("ошибка создания логгера службы: %v", err)
+	}
+
+	err = s.Run()
+	if err != nil {
+		logger.Error(err)
+		return fmt.Errorf("ошибка работы службы: %v", err)
 	}
 
 	return nil

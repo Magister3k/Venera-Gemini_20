@@ -1,45 +1,49 @@
 package tray
 
 import (
-	"fmt"
-	"os/exec"
-	"runtime"
+	"venera/logging"
 
 	"github.com/getlantern/systray"
-	"venera/config"
-	"venera/logging"
 )
 
-// IconData должен быть заполнен байтами иконки
-var IconData []byte
+var (
+	onStart func()
+	onStop  func()
+)
 
-// RunTray запускает приложение в системном трее
+// RunTray запускает приложение с иконкой в системном трее
 func RunTray(startApp func(), stopApp func()) {
-	systray.Run(func() {
-		onReady(startApp)
-	}, stopApp)
+	onStart = startApp
+	onStop = stopApp
+
+	systray.Run(onReady, onExit)
 }
 
-func onReady(startApp func()) {
-	if len(IconData) > 0 {
-		systray.SetIcon(IconData)
-	}
+func onReady() {
 	systray.SetTitle("Venera")
-	systray.SetTooltip("Система сбора идентификаторов Venera")
+	systray.SetTooltip("Venera Collector")
+	
+	// В реальном проекте тут нужно загрузить байты иконки, 
+	// например через go:embed
+	// systray.SetIcon(iconData)
 
-	mOpen := systray.AddMenuItem("Открыть интерфейс", "Открыть веб-интерфейс управления")
+	mStart := systray.AddMenuItem("Запустить сбор", "Запустить все процессы сбора")
+	mStop := systray.AddMenuItem("Остановить сбор", "Остановить все процессы сбора")
 	systray.AddSeparator()
-	mQuit := systray.AddMenuItem("Выход", "Закрыть приложение")
+	mQuit := systray.AddMenuItem("Выход", "Закрыть приложение Venera")
 
-	// Запускаем основную логику
-	startApp()
+	// Стартуем веб-сервер и БД при запуске трея
+	go onStart()
 
-	// Обработка кликов
 	go func() {
 		for {
 			select {
-			case <-mOpen.ClickedCh:
-				openBrowser(fmt.Sprintf("http://localhost:%d", config.GlobalConfig.Generic.WebServerPort))
+			case <-mStart.ClickedCh:
+				logging.Log.Info("Трей: запрошен ручной старт")
+				// Здесь можно вызвать логику старта процессов (если не AutoStart)
+			case <-mStop.ClickedCh:
+				logging.Log.Info("Трей: запрошена ручная остановка")
+				// Логика остановки процессов
 			case <-mQuit.ClickedCh:
 				systray.Quit()
 				return
@@ -48,14 +52,7 @@ func onReady(startApp func()) {
 	}()
 }
 
-// openBrowser открывает URL в браузере по умолчанию
-func openBrowser(url string) {
-	var err error
-	switch runtime.GOOS {
-	case "windows":
-		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
-	}
-	if err != nil {
-		logging.Log.Errorf("Ошибка открытия браузера: %v", err)
-	}
+func onExit() {
+	logging.Log.Info("Трей закрывается...")
+	onStop()
 }

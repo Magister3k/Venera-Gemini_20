@@ -16,12 +16,10 @@ var (
 	ctx             = context.Background()
 )
 
-// InitDragonflyDB инициализирует подключение к DragonflyDB
 func InitDragonflyDB() error {
 	cfg := config.GlobalConfig.DragonflyDB
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 
-	// Повторные попытки подключения с экспоненциальной задержкой
 	var err error
 	delay := 1 * time.Second
 
@@ -29,7 +27,7 @@ func InitDragonflyDB() error {
 		DragonflyClient = redis.NewClient(&redis.Options{
 			Addr:     addr,
 			Password: cfg.Password,
-			DB:       0, // use default DB
+			DB:       0,
 		})
 
 		_, err = DragonflyClient.Ping(ctx).Result()
@@ -46,8 +44,6 @@ func InitDragonflyDB() error {
 	return fmt.Errorf("не удалось подключиться к DragonflyDB после 5 попыток: %w", err)
 }
 
-// PushToList добавляет запись в список (List) для конкретного источника.
-// Формат: "ключ:значение:время"
 func PushToList(sourceID, data string) error {
 	listKey := "list:" + sourceID
 	err := DragonflyClient.RPush(ctx, listKey, data).Err()
@@ -57,18 +53,26 @@ func PushToList(sourceID, data string) error {
 	return nil
 }
 
-// GetListLength возвращает текущую длину списка
 func GetListLength(sourceID string) (int64, error) {
 	listKey := "list:" + sourceID
 	return DragonflyClient.LLen(ctx, listKey).Result()
 }
 
-// PopBatchFromList извлекает до n записей из списка
 func PopBatchFromList(sourceID string, count int64) ([]string, error) {
 	listKey := "list:" + sourceID
 	
-	// Используем транзакцию (pipeline) для получения диапазона и его удаления (LPop count доступно в Redis 6.2+)
-	// Для совместимости с DragonflyDB используем LPOP с параметром count
+	if count == -1 {
+		// Получить все элементы и удалить
+		pipe := DragonflyClient.Pipeline()
+		rangeCmd := pipe.LRange(ctx, listKey, 0, -1)
+		pipe.Del(ctx, listKey)
+		_, err := pipe.Exec(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return rangeCmd.Val(), nil
+	}
+	
 	res, err := DragonflyClient.LPopCount(ctx, listKey, int(count)).Result()
 	if err != nil && err != redis.Nil {
 		return nil, fmt.Errorf("ошибка при извлечении пакета из %s: %v", listKey, err)
@@ -76,8 +80,6 @@ func PopBatchFromList(sourceID string, count int64) ([]string, error) {
 	return res, nil
 }
 
-// AddToSortedSet добавляет отфильтрованную пару в Sorted Set.
-// Мы используем sourceID как часть ключа, а само значение (ключ:значение) как member, время как score
 func AddToSortedSet(sourceID string, key, value string, timestamp int64) error {
 	setKey := "ss:" + sourceID
 	member := fmt.Sprintf("%s:%s", key, value)
@@ -93,26 +95,13 @@ func AddToSortedSet(sourceID string, key, value string, timestamp int64) error {
 	return nil
 }
 
-// GetAndClearSortedSet извлекает все данные из Sorted Set и очищает его
-func GetAndClearSortedSet(sourceID string) ([]redis.Z, error) {
+// CleanupSortedSet удаляет старые записи из Sorted Set (например, старше 24 часов)
+func CleanupSortedSet(sourceID string, olderThan int64) error {
 	setKey := "ss:" + sourceID
-	
-	// Используем ZRange с удалением (если поддерживается, иначе Pipeline)
-	// Для простоты используем Pipeline: ZRange -> Del
-	pipe := DragonflyClient.Pipeline()
-	
-	rangeCmd := pipe.ZRangeWithScores(ctx, setKey, 0, -1)
-	pipe.Del(ctx, setKey)
-	
-	_, err := pipe.Exec(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("ошибка при извлечении из sorted set %s: %v", setKey, err)
-	}
-	
-	return rangeCmd.Val(), nil
+	err := DragonflyClient.ZRemRangeByScore(ctx, setKey, "-inf", fmt.Sprintf("%d", olderThan)).Err()
+	return err
 }
 
-// ParseEntry разбирает строку "ключ:значение:время"
 func ParseEntry(entry string) (string, string, string, error) {
 	parts := strings.SplitN(entry, ":", 3)
 	if len(parts) != 3 {
@@ -121,7 +110,6 @@ func ParseEntry(entry string) (string, string, string, error) {
 	return parts[0], parts[1], parts[2], nil
 }
 
-// CloseDragonflyDB закрывает подключение
 func CloseDragonflyDB() {
 	if DragonflyClient != nil {
 		_ = DragonflyClient.Close()
