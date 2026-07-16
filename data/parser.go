@@ -44,21 +44,21 @@ func ParseJSONToPairs(jsonData []byte, timestamp int64) ([]string, error) {
 			if val.Type() != fastjson.TypeString {
 				strVal = val.String()
 			}
-			
+
 			// Если значение содержит двоеточие, оно будет сохранено,
-			// так как ParseEntry (в dragonfly.go) использует strings.SplitN(..., ":", 3) 
+			// так как ParseEntry (в dragonfly.go) использует strings.SplitN(..., ":", 3)
 			// и разбивает строго на "ключ", "значение(возможно с двоеточиями)" и "время".
-			
-			// Для надежности, чтобы избежать конфликтов при ParseEntry, 
+
+			// Для надежности, чтобы избежать конфликтов при ParseEntry,
 			// мы можем использовать другой разделитель или кодировать значение.
 			// Но ТЗ требует формат: ключ:значение:время.
 			// В data/dragonfly.go (ParseEntry) мы реализовали SplitN(..., ":", 3), что не сработает корректно
 			// если в значении есть двоеточия (оно захватит время как часть значения, если разбивать с конца, или разобьет значение).
-			
-			// Поэтому мы будем использовать специальный формат для хранения. 
+
+			// Поэтому мы будем использовать специальный формат для хранения.
 			// ТЗ: "добавление к паре ключ-значение времени фиксации (приведение к формату ключ:значение:время)"
-			
-			// Исправленный подход: Значение не должно ломать парсинг. 
+
+			// Исправленный подход: Значение не должно ломать парсинг.
 			// Мы будем гарантировать, что время всегда в конце, а ключ не содержит ":".
 			// Формат: "ключ:значение:время"
 			// При чтении (ParseEntry) нужно искать последнее двоеточие для времени, и первое для ключа.
@@ -76,10 +76,10 @@ func ParseJSONToPairs(jsonData []byte, timestamp int64) ([]string, error) {
 // которая корректно обрабатывает значения, содержащие двоеточия.
 func ImprovedParseEntry(entry string) (string, string, int64, error) {
 	// Формат: "ключ:значение:время"
-	
+
 	firstColon := -1
 	lastColon := -1
-	
+
 	for i := 0; i < len(entry); i++ {
 		if entry[i] == ':' {
 			if firstColon == -1 {
@@ -88,20 +88,20 @@ func ImprovedParseEntry(entry string) (string, string, int64, error) {
 			lastColon = i
 		}
 	}
-	
+
 	if firstColon == -1 || firstColon == lastColon {
 		return "", "", 0, fmt.Errorf("неверный формат записи (отсутствуют нужные разделители): %s", entry)
 	}
-	
+
 	key := entry[:firstColon]
 	value := entry[firstColon+1 : lastColon]
 	timeStr := entry[lastColon+1:]
-	
+
 	var timestamp int64
 	_, err := fmt.Sscanf(timeStr, "%d", &timestamp)
 	if err != nil {
 		return "", "", 0, fmt.Errorf("ошибка парсинга времени %s: %v", timeStr, err)
 	}
-	
+
 	return key, value, timestamp, nil
 }

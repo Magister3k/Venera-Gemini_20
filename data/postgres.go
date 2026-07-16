@@ -55,12 +55,12 @@ func InsertBatch(sourceID string, entries []DataEntry) error {
 	}
 
 	ctx := context.Background()
-	
+
 	// В PostgreSQL 15+ можно использовать MERGE или делать UPSERT через временную таблицу для скорости.
 	// Для совместимости используем Batch с ON CONFLICT.
 	batch := &pgx.Batch{}
 
-	// SQL-запрос (UPSERT). 
+	// SQL-запрос (UPSERT).
 	// Используем to_timestamp($4::double precision) для сохранения миллисекунд
 	query := `
 		INSERT INTO venera_data (source, key, value, date_first, date_last)

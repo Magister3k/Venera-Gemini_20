@@ -18,7 +18,7 @@ func TestParseJSONToPairs(t *testing.T) {
 	if len(pairs) != 3 {
 		t.Errorf("Expected 3 pairs, got %d", len(pairs))
 	}
-	
+
 	// В зависимости от порядка обхода ключи могут быть разными, но проверим наличие конкретного
 	foundNested := false
 	for _, p := range pairs {
@@ -29,7 +29,7 @@ func TestParseJSONToPairs(t *testing.T) {
 		if pTs != ts {
 			t.Errorf("Expected ts %d, got %d", ts, pTs)
 		}
-		
+
 		if key == "nested.protocol" {
 			foundNested = true
 			if val != "tcp:ip" {
@@ -37,7 +37,7 @@ func TestParseJSONToPairs(t *testing.T) {
 			}
 		}
 	}
-	
+
 	if !foundNested {
 		t.Errorf("Did not find key 'nested.protocol'")
 	}
@@ -45,20 +45,20 @@ func TestParseJSONToPairs(t *testing.T) {
 
 func TestImprovedParseEntry(t *testing.T) {
 	entry := "nested.key:value:with:colons:1625000000000"
-	
+
 	key, val, ts, err := data.ImprovedParseEntry(entry)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
-	
+
 	if key != "nested.key" {
 		t.Errorf("Expected key 'nested.key', got '%s'", key)
 	}
-	
+
 	if val != "value:with:colons" {
 		t.Errorf("Expected val 'value:with:colons', got '%s'", val)
 	}
-	
+
 	if ts != 1625000000000 {
 		t.Errorf("Expected ts 1625000000000, got %d", ts)
 	}

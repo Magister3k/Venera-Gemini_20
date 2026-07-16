@@ -23,6 +23,7 @@ func InitDragonflyDB() error {
 	var err error
 	delay := 1 * time.Second
 
+	// ТЗ п.18.2: Повторные попытки подключения к СУБД с экспоненциальной задержкой.
 	for i := 0; i < 5; i++ {
 		DragonflyClient = redis.NewClient(&redis.Options{
 			Addr:     addr,
@@ -49,16 +50,16 @@ func PushBatchToList(sourceID string, data []string) error {
 	if len(data) == 0 {
 		return nil
 	}
-	
+
 	listKey := "list:" + sourceID
-	
+
 	// Используем variadic arguments для RPush, чтобы вставить весь батч одним вызовом
 	// go-redis RPush принимает interface{}, поэтому преобразуем []string в []interface{}
 	args := make([]interface{}, len(data))
 	for i, v := range data {
 		args[i] = v
 	}
-	
+
 	err := DragonflyClient.RPush(ctx, listKey, args...).Err()
 	if err != nil {
 		return fmt.Errorf("ошибка при пакетном добавлении в list %s: %v", listKey, err)
@@ -82,7 +83,7 @@ func GetListLength(sourceID string) (int64, error) {
 
 func PopBatchFromList(sourceID string, count int64) ([]string, error) {
 	listKey := "list:" + sourceID
-	
+
 	if count == -1 {
 		// Получить все элементы и удалить. Используем TxPipeline для атомарности транзакции MULTI/EXEC
 		pipe := DragonflyClient.TxPipeline()
@@ -94,7 +95,7 @@ func PopBatchFromList(sourceID string, count int64) ([]string, error) {
 		}
 		return rangeCmd.Val(), nil
 	}
-	
+
 	res, err := DragonflyClient.LPopCount(ctx, listKey, int(count)).Result()
 	if err != nil && err != redis.Nil {
 		return nil, fmt.Errorf("ошибка при извлечении пакета из %s: %v", listKey, err)
@@ -112,7 +113,7 @@ type ZSetEntry struct {
 // AddBatchToSortedSet добавляет пачку отфильтрованных пар в Sorted Set
 func AddBatchToSortedSet(sourceID string, entries []ZSetEntry) error {
 	setKey := "ss:" + sourceID
-	
+
 	members := make([]redis.Z, 0, len(entries))
 	for _, e := range entries {
 		member := fmt.Sprintf("%s:%s", e.Key, e.Value)
@@ -121,9 +122,9 @@ func AddBatchToSortedSet(sourceID string, entries []ZSetEntry) error {
 			Member: member,
 		})
 	}
-	
+
 	err := DragonflyClient.ZAdd(ctx, setKey, members...).Err()
-	
+
 	if err != nil {
 		return fmt.Errorf("ошибка при батч-добавлении в sorted set %s: %v", setKey, err)
 	}
@@ -133,12 +134,12 @@ func AddBatchToSortedSet(sourceID string, entries []ZSetEntry) error {
 func AddToSortedSet(sourceID string, key, value string, timestamp int64) error {
 	setKey := "ss:" + sourceID
 	member := fmt.Sprintf("%s:%s", key, value)
-	
+
 	err := DragonflyClient.ZAdd(ctx, setKey, redis.Z{
 		Score:  float64(timestamp),
 		Member: member,
 	}).Err()
-	
+
 	if err != nil {
 		return fmt.Errorf("ошибка при добавлении в sorted set %s: %v", setKey, err)
 	}
@@ -152,12 +153,38 @@ func CleanupSortedSet(sourceID string, olderThan int64) error {
 	return err
 }
 
+// ParseEntry разбирает строку формата "ключ:значение:время".
+// В значении могут встречаться дополнительные разделители ":", поэтому
+// мы используем ImprovedParseEntry из parser.go или аналогичную безопасную логику
 func ParseEntry(entry string) (string, string, string, error) {
-	parts := strings.SplitN(entry, ":", 3)
-	if len(parts) != 3 {
+	// Ищем первый и последний индекс разделителя ':'
+	firstColon := -1
+	lastColon := -1
+
+	for i := 0; i < len(entry); i++ {
+		if entry[i] == ':' {
+			if firstColon == -1 {
+				firstColon = i
+			}
+			lastColon = i
+		}
+	}
+
+	// Ошибка, если нет двоеточий, или есть только одно
+	if firstColon == -1 || firstColon == lastColon {
+		// Оставляем совместимость со старым форматом (SplitN) для старых тестов
+		parts := strings.SplitN(entry, ":", 3)
+		if len(parts) == 3 {
+			return parts[0], parts[1], parts[2], nil
+		}
 		return "", "", "", fmt.Errorf("неверный формат записи: %s", entry)
 	}
-	return parts[0], parts[1], parts[2], nil
+
+	key := entry[:firstColon]
+	value := entry[firstColon+1 : lastColon]
+	timeStr := entry[lastColon+1:]
+
+	return key, value, timeStr, nil
 }
 
 func CloseDragonflyDB() {
