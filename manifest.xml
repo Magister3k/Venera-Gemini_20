@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-16"?>
+<instrumentationManifest xsi:schemaLocation="http://schemas.microsoft.com/win/2004/08/events eventman.xsd" xmlns="http://schemas.microsoft.com/win/2004/08/events" xmlns:win="http://manifests.microsoft.com/win/2004/08/windows/events" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:trace="http://schemas.microsoft.com/win/2004/08/events/trace">
+	<instrumentation>
+		<events>
+			<provider name="VeneraApp" guid="{b16b47ab-3286-4f7f-bb8e-1768c8bcf6fc}" symbol="VeneraApp" resourceFileName="%SystemDrive%\Venera\Venera.exe" messageFileName="%SystemDrive%\Venera\Venera.exe">
+				<events>
+					<event symbol="ManifestUpdated" value="2003" version="1" channel="Application" level="win:Informational" message="$(string.VeneraApp.event.2003.message)"></event>
+				</events>
+				<channels>
+					<importChannel name="Application" chid="Application"></importChannel>
+				</channels>
+			</provider>
+		</events>
+	</instrumentation>
+	<localization>
+		<resources culture="en-US">
+			<stringTable>
+				<string id="VeneraApp.event.2003.message" value="Manifest updated to version %1."></string>
+			</stringTable>
+		</resources>
+	</localization>
+</instrumentationManifest>
