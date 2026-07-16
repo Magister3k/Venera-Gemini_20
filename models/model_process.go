@@ -4,35 +4,46 @@ package models
 type ProcessSourceType string
 
 const (
-	SourceNetwork ProcessSourceType = "network"
-	SourceFolder  ProcessSourceType = "folder"
-	SourceFile    ProcessSourceType = "file"
+	SourceNetwork ProcessSourceType = "network" // Сетевая карта (непрерывный поток)
+	SourceFolder  ProcessSourceType = "folder"  // Папка с файлами pcap
+	SourceFile    ProcessSourceType = "file"    // Отдельный pcap-файл
+)
+
+// ProcessStatus определяет текущее состояние процесса.
+type ProcessStatus string
+
+const (
+	StatusStopped ProcessStatus = "stopped" // Процесс остановлен
+	StatusRunning ProcessStatus = "running" // Процесс запущен и собирает данные (ПВn)
+	StatusError   ProcessStatus = "error"   // Процесс остановлен из-за ошибки
 )
 
 // ProcessConfig описывает параметры отдельного процесса сбора данных.
-// Эти данные хранятся в processes.toml.
+// Эти данные хранятся в файле processes.toml с группировкой по ID процесса (п.1.9 ТЗ).
 type ProcessConfig struct {
-	ID                 string            `toml:"id"`
-	Type               ProcessSourceType `toml:"type"`
-	Name               string            `toml:"name"`
-	IP                 string            `toml:"ip,omitempty"`           // Для SourceNetwork
-	UDPPort            int               `toml:"udp_port,omitempty"`     // Для SourceNetwork
-	FolderPath         string            `toml:"folder_path,omitempty"`  // Для SourceFolder
-	ScanSubfolders     bool              `toml:"scan_subfolders,omitempty"`// Для SourceFolder
-	MonitorNewFiles    bool              `toml:"monitor_new_files,omitempty"`// Для SourceFolder
-	FilePath           string            `toml:"file_path,omitempty"`    // Для SourceFile
-	Status             string            `toml:"-"`                      // Текущий статус (не сохраняется в toml) "stopped", "running", "error"
+	ID                 string            `toml:"id"`                           // Уникальный идентификатор процесса
+	Type               ProcessSourceType `toml:"type"`                         // Тип источника (network, folder, file)
+	Name               string            `toml:"name"`                         // Пользовательское название источника (source)
+	IP                 string            `toml:"ip,omitempty"`                 // Для SourceNetwork: IP-адрес сетевой карты
+	UDPPort            int               `toml:"udp_port,omitempty"`           // Для SourceNetwork: прослушиваемый UDP-порт
+	FolderPath         string            `toml:"folder_path,omitempty"`        // Для SourceFolder: путь к папке с файлами
+	ScanSubfolders     bool              `toml:"scan_subfolders,omitempty"`    // Для SourceFolder: режим сканирования подпапок (п.13 ТЗ)
+	MonitorNewFiles    bool              `toml:"monitor_new_files,omitempty"`  // Для SourceFolder: режим мониторинга новых файлов (п.13 ТЗ)
+	FilePath           string            `toml:"file_path,omitempty"`          // Для SourceFile: абсолютный путь к отдельному файлу
+	Status             ProcessStatus     `toml:"-"`                            // Текущий статус (не сохраняется в toml)
 }
 
-// ProcessesFile структура для хранения мапы процессов
+// ProcessesFile структура для хранения процессов в корневом TOML файле (processes.toml).
 type ProcessesFile struct {
 	Processes map[string]ProcessConfig `toml:"processes"`
 }
 
-// DataEntry представляет одну разобранную запись (ключ-значение-время)
+// DataEntry представляет одну разобранную запись (ключ-значение-время), готовую для вставки в СУБД.
+// Соответствует структуре базы данных "Venera" СУБД PostgreSQL (п.3 ТЗ).
 type DataEntry struct {
-	Source    string // ID источника
-	Key       string
-	Value     string
-	Timestamp int64 // Unix timestamp (мс)
+	Source    string // Название источника (source)
+	Key       string // Ключ (key)
+	Value     string // Значение (value)
+	Timestamp int64  // Unix timestamp (мс) (используется для date_first и date_last через UPSERT)
 }
+
