@@ -15,7 +15,7 @@ var (
 	ProcsPath    = "processes.toml"
 )
 
-// LoadProcesses загружает список процессов из файла processes.toml
+// LoadProcesses загружает список процессов из файла processes.toml (п.1.9 ТЗ).
 func LoadProcesses() error {
 	processesMu.Lock()
 	defer processesMu.Unlock()
@@ -34,8 +34,8 @@ func LoadProcesses() error {
 	}
 
 	for k, v := range pf.Processes {
-		v.ID = k // Убеждаемся, что ID совпадает с ключом
-		v.Status = "stopped" // При загрузке все остановлены
+		v.ID = k                             // Убеждаемся, что ID совпадает с ключом
+		v.Status = models.StatusStopped      // При загрузке все остановлены
 		processesMap[k] = v
 	}
 
@@ -53,6 +53,11 @@ func SaveProcesses() error {
 
 	for k, v := range processesMap {
 		pf.Processes[k] = v
+	}
+
+	// Для надежности создадим резервную копию (отказоустойчивость)
+	if _, err := os.Stat(ProcsPath); err == nil {
+		_ = os.Rename(ProcsPath, ProcsPath+".bak")
 	}
 
 	file, err := os.Create(ProcsPath)
@@ -96,7 +101,7 @@ func AddOrUpdateProcess(p models.ProcessConfig) error {
 		return fmt.Errorf("ID процесса не может быть пустым")
 	}
 	if p.Status == "" {
-		p.Status = "stopped"
+		p.Status = models.StatusStopped
 	}
 	processesMap[p.ID] = p
 	processesMu.Unlock()
@@ -112,7 +117,7 @@ func RemoveProcess(id string) error {
 }
 
 // UpdateProcessStatus обновляет только статус процесса (в памяти)
-func UpdateProcessStatus(id string, status string) {
+func UpdateProcessStatus(id string, status models.ProcessStatus) {
 	processesMu.Lock()
 	defer processesMu.Unlock()
 	if p, ok := processesMap[id]; ok {
@@ -120,3 +125,4 @@ func UpdateProcessStatus(id string, status string) {
 		processesMap[id] = p
 	}
 }
+

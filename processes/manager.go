@@ -8,7 +8,6 @@ import (
 
 	"venera/config"
 	"venera/data"
-	"venera/filter"
 	"venera/logging"
 	"venera/models"
 )
@@ -17,10 +16,11 @@ var (
 	Manager = NewProcessManager()
 )
 
+// RunningProcess описывает состояние запущенного процесса
 type RunningProcess struct {
 	Config   models.ProcessConfig
 	Cancel   context.CancelFunc
-	Trigger  chan struct{} // Заменили sync.Cond на канал для надежной сигнализации
+	Trigger  chan struct{} // Канал для сигнализации о достижении порога (ПЗ)
 	WG       sync.WaitGroup
 }
 
@@ -29,15 +29,20 @@ type ProcessManager struct {
 	activeProcs   map[string]*RunningProcess
 	activeWorkers int
 	workerMu      sync.Mutex
+	
+	// sourceLocks предотвращает одновременный запуск нескольких воркеров для одного источника (п.4.2 ТЗ)
+	sourceLocks   map[string]bool
+	sourceLocksMu sync.Mutex
 }
 
 func NewProcessManager() *ProcessManager {
 	return &ProcessManager{
 		activeProcs: make(map[string]*RunningProcess),
+		sourceLocks: make(map[string]bool),
 	}
 }
 
-// StartProcess запускает процесс сбора данных ПВn
+// StartProcess запускает процесс сбора данных ПВn (п.1.4, 4.1 ТЗ)
 func (pm *ProcessManager) StartProcess(p models.ProcessConfig) error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
@@ -51,12 +56,12 @@ func (pm *ProcessManager) StartProcess(p models.ProcessConfig) error {
 	rp := &RunningProcess{
 		Config:  p,
 		Cancel:  cancel,
-		Trigger: make(chan struct{}, 1), // Буферизованный канал на 1 сигнал
+		Trigger: make(chan struct{}, 1), // Буферизованный канал на 1 сигнал для избежания deadlock
 	}
 
 	pm.activeProcs[p.ID] = rp
 
-	UpdateProcessStatus(p.ID, "running")
+	UpdateProcessStatus(p.ID, models.StatusRunning)
 	logging.Log.Infof("Запущен процесс: %s (%s)", p.Name, p.ID)
 
 	rp.WG.Add(1)
@@ -68,7 +73,7 @@ func (pm *ProcessManager) StartProcess(p models.ProcessConfig) error {
 	return nil
 }
 
-// StopProcess останавливает процесс
+// StopProcess останавливает процесс (п.1.4 ТЗ)
 func (pm *ProcessManager) StopProcess(id string) error {
 	pm.mu.Lock()
 	rp, exists := pm.activeProcs[id]
@@ -77,27 +82,27 @@ func (pm *ProcessManager) StopProcess(id string) error {
 		return fmt.Errorf("процесс %s не запущен", id)
 	}
 	
-	rp.Cancel() // Отменяем контекст, горутины завершатся
+	rp.Cancel() // Отменяем контекст (завершает Tshark и горутины)
 	delete(pm.activeProcs, id)
 	pm.mu.Unlock()
 
 	// Ожидаем завершения горутин этого процесса
 	rp.WG.Wait()
 
-	UpdateProcessStatus(id, "stopped")
+	UpdateProcessStatus(id, models.StatusStopped)
 	logging.Log.Infof("Остановлен процесс: %s", id)
 
-	// Запускаем финальную обработку остатков в БД
+	// Запускаем финальную обработку остатков в БД (п.5.5 ТЗ: "а также при остановке процесса")
 	go pm.runDataProcessingTask(id, true)
 
 	return nil
 }
 
-// runCollectionProcess (ПВ1...ПВn)
+// runCollectionProcess (ПВ1...ПВn) выполняет сбор данных (п.4.1, 5.1 ТЗ)
 func (pm *ProcessManager) runCollectionProcess(ctx context.Context, rp *RunningProcess) {
 	defer rp.WG.Done()
 
-	// Функция-триггер безопасно отправляет сигнал в буферизованный канал
+	// Функция-триггер безопасно отправляет сигнал в канал при достижении ПЗ
 	trigger := func() {
 		select {
 		case rp.Trigger <- struct{}{}:
@@ -115,7 +120,7 @@ func (pm *ProcessManager) runCollectionProcess(ctx context.Context, rp *RunningP
 
 	if err != nil && err != context.Canceled {
 		logging.Log.Errorf("Ошибка в процессе %s: %v", rp.Config.ID, err)
-		UpdateProcessStatus(rp.Config.ID, "error")
+		UpdateProcessStatus(rp.Config.ID, models.StatusError)
 	}
 }
 
@@ -124,10 +129,10 @@ func (pm *ProcessManager) collectFromNetwork(ctx context.Context, p models.Proce
 }
 
 func (pm *ProcessManager) collectFromFileOrFolder(ctx context.Context, p models.ProcessConfig, trigger func()) error {
-	return RunTsharkFile(ctx, p.FilePath, p.FolderPath, p.ID, trigger)
+	return RunTsharkFileOrFolder(ctx, p, trigger)
 }
 
-// runTaskManagementProcess - Процесс управления задачами (п.4.2)
+// runTaskManagementProcess - Процесс управления задачами (п.4.2 ТЗ)
 func (pm *ProcessManager) runTaskManagementProcess(ctx context.Context, rp *RunningProcess) {
 	defer rp.WG.Done()
 
@@ -137,11 +142,11 @@ func (pm *ProcessManager) runTaskManagementProcess(ctx context.Context, rp *Runn
 	for {
 		select {
 		case <-ctx.Done():
-			return // Корректно выходим при отмене контекста
-		case <-rp.Trigger: // Сигнал о достижении порога (ПЗ)
+			return // Корректно выходим при остановке
+		case <-rp.Trigger: // Сигнал о достижении порога записей (ПЗ)
 			pm.spawnDataWorker(rp.Config.ID)
 		case <-ticker.C: // Срабатывание таймера (ТПn)
-			// Периодически очищаем SortedSet от устаревших данных (старше 24 часов)
+			// Периодически очищаем SortedSet от устаревших данных
 			olderThan := time.Now().Add(-24 * time.Hour).UnixMilli()
 			_ = data.CleanupSortedSet(rp.Config.ID, olderThan)
 
@@ -150,39 +155,52 @@ func (pm *ProcessManager) runTaskManagementProcess(ctx context.Context, rp *Runn
 	}
 }
 
-// spawnDataWorker запускает горутину обработки (ПОn), проверяя ограничения (Макс 20 процессов)
+// spawnDataWorker запускает горутину обработки (ПОn), соблюдая ТЗ
 func (pm *ProcessManager) spawnDataWorker(sourceID string) {
+	// ТЗ п.4.2: "С одной структурой может работать только один процесс обработки данных одномоментно"
+	pm.sourceLocksMu.Lock()
+	if pm.sourceLocks[sourceID] {
+		pm.sourceLocksMu.Unlock()
+		return // Воркер для этого источника уже работает
+	}
+	pm.sourceLocks[sourceID] = true
+	pm.sourceLocksMu.Unlock()
+
+	// ТЗ п.1.5, 4.2: "одновременно может быть запущено до n таких процессов"
 	pm.workerMu.Lock()
-	
 	if pm.activeWorkers >= config.GlobalConfig.Generic.MaxProcesses {
 		pm.workerMu.Unlock()
-		// logging.Log.Warnf("Достигнут лимит рабочих процессов (%d). Ожидание...", config.GlobalConfig.Generic.MaxProcesses)
+		// Лимит превышен, снимаем блокировку источника, чтобы попробовать позже
+		pm.sourceLocksMu.Lock()
+		pm.sourceLocks[sourceID] = false
+		pm.sourceLocksMu.Unlock()
 		return 
 	}
-	
 	pm.activeWorkers++
 	pm.workerMu.Unlock()
 
 	go func() {
 		defer func() {
+			// Освобождаем лимиты и блокировки
 			pm.workerMu.Lock()
 			pm.activeWorkers--
 			pm.workerMu.Unlock()
+
+			pm.sourceLocksMu.Lock()
+			pm.sourceLocks[sourceID] = false
+			pm.sourceLocksMu.Unlock()
 		}()
 		
 		pm.runDataProcessingTask(sourceID, false)
 	}()
 }
 
-// runDataProcessingTask (ПОn) - выполняет задачи фильтрации и переноса (п.5.5)
+// runDataProcessingTask (ПОn) - выполняет задачи фильтрации и переноса данных (п.5.5 ТЗ)
 func (pm *ProcessManager) runDataProcessingTask(sourceID string, isFinal bool) {
 	count := int64(config.GlobalConfig.DragonflyDB.BatchSize)
 	if isFinal {
-		count = -1 // Забрать все
+		count = -1 // Забрать все элементы из очереди
 	}
-	
-	// Загружаем фильтры один раз на весь батч для минимизации оверхеда atomic.Load
-	currentFilters, _ := filter.GetFilterData()
 
 	for {
 		entries, err := data.PopBatchFromList(sourceID, count)
@@ -191,13 +209,13 @@ func (pm *ProcessManager) runDataProcessingTask(sourceID string, isFinal bool) {
 			return
 		}
 		if len(entries) == 0 {
-			break // Очередь пуста, выходим из воркера
+			break // Очередь пуста, завершаем обработку
 		}
 
 		var pgEntries []data.DataEntry
-		// Буфер для накопления записей в SortedSet
 		var ssEntries []data.ZSetEntry
 
+		// 5.5.2, 5.5.3: Разделение и фильтрация
 		for _, entryStr := range entries {
 			key, value, ts, err := data.ImprovedParseEntry(entryStr)
 			if err != nil {
@@ -205,16 +223,12 @@ func (pm *ProcessManager) runDataProcessingTask(sourceID string, isFinal bool) {
 				continue
 			}
 
-			// Быстрая проверка по заранее загруженным фильтрам
-			if len(currentFilters.WhitelistKeys) > 0 && !currentFilters.WhitelistKeys[key] {
-				continue
-			}
-			if currentFilters.BlacklistValues[value] {
+			// Фильтрация согласно белому и черному спискам (data/filter.go)
+			if !data.IsAllowed(key, value) {
 				continue
 			}
 
 			ssEntries = append(ssEntries, data.ZSetEntry{Key: key, Value: value, Timestamp: ts})
-			
 			pgEntries = append(pgEntries, data.DataEntry{
 				Source:    sourceID,
 				Key:       key,
@@ -223,7 +237,7 @@ func (pm *ProcessManager) runDataProcessingTask(sourceID string, isFinal bool) {
 			})
 		}
 
-		// Добавляем в Sorted Set батчем
+		// 5.5.4: Помещение в структуру sorted sets
 		if len(ssEntries) > 0 {
 			err = data.AddBatchToSortedSet(sourceID, ssEntries)
 			if err != nil {
@@ -231,17 +245,15 @@ func (pm *ProcessManager) runDataProcessingTask(sourceID string, isFinal bool) {
 			}
 		}
 
-		// 5.5.5 Перемещение в PostgreSQL
+		// 5.5.5: Перемещение в PostgreSQL в пакетном режиме
 		if len(pgEntries) > 0 {
 			err = data.InsertBatch(sourceID, pgEntries)
 			if err != nil {
 				logging.Log.Errorf("Ошибка вставки в PostgreSQL: %v", err)
-			} else {
-				// logging.Log.Infof("Успешно перенесено %d записей в PostgreSQL (источник: %s)", len(pgEntries), sourceID)
 			}
 		}
 
-		// Если это был финальный проход (count == -1), выходим после одного раза
+		// Если это был финальный проход, выходим после одного раза
 		if isFinal {
 			break
 		}

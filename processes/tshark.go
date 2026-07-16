@@ -4,16 +4,19 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
 
 	"golang.org/x/sys/windows"
 	"venera/config"
 	"venera/data"
 	"venera/logging"
+	"venera/models"
 )
 
-// RunTsharkNetwork запускает Tshark для захвата с сетевого интерфейса
+// RunTsharkNetwork запускает Tshark для захвата с сетевого интерфейса (п.5.1 ТЗ)
 func RunTsharkNetwork(ctx context.Context, ip string, port int, sourceID string, trigger func()) error {
 	exe := config.GlobalConfig.Paths.TsharkExe
 	filter := fmt.Sprintf("host %s and udp port %d", ip, port)
@@ -23,26 +26,97 @@ func RunTsharkNetwork(ctx context.Context, ip string, port int, sourceID string,
 	return runTsharkCommand(ctx, exe, args, sourceID, trigger)
 }
 
-// RunTsharkFile запускает Tshark для чтения из файла
-func RunTsharkFile(ctx context.Context, filePath, folderPath, sourceID string, trigger func()) error {
+// RunTsharkFileOrFolder запускает обработку отдельного файла или папки с файлами (п.5.1, 13 ТЗ)
+func RunTsharkFileOrFolder(ctx context.Context, p models.ProcessConfig, trigger func()) error {
 	exe := config.GlobalConfig.Paths.TsharkExe
-	var args []string
 
-	if filePath != "" {
-		args = []string{"-r", filePath, "-T", "ek"}
-	} else if folderPath != "" {
-		return fmt.Errorf("обработка папки не реализована в заглушке, требует итерации")
-	} else {
-		return fmt.Errorf("не указан путь к файлу или папке")
+	if p.Type == models.SourceFile && p.FilePath != "" {
+		// Обработка одного файла
+		args := []string{"-r", p.FilePath, "-T", "ek"}
+		return runTsharkCommand(ctx, exe, args, p.ID, trigger)
 	}
 
-	return runTsharkCommand(ctx, exe, args, sourceID, trigger)
+	if p.Type == models.SourceFolder && p.FolderPath != "" {
+		// Обработка файлов в папке (п.13 ТЗ)
+		return processFolder(ctx, exe, p, trigger)
+	}
+
+	return fmt.Errorf("не указан путь к файлу или папке для источника: %s", p.ID)
 }
 
+// processFolder обрабатывает папку с pcap файлами с учетом параметров подпапок и мониторинга (п.13 ТЗ)
+func processFolder(ctx context.Context, exe string, p models.ProcessConfig, trigger func()) error {
+	processedFiles := make(map[string]bool)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		var filesToProcess []string
+
+		// Функция обхода файлов
+		walkFunc := func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() {
+				if path != p.FolderPath && !p.ScanSubfolders {
+					return filepath.SkipDir // Пропускаем подпапки, если выключено
+				}
+				return nil
+			}
+
+			// Проверяем расширения (для pcap/pcapng) и то, что файл еще не обработан
+			ext := filepath.Ext(path)
+			if (ext == ".pcap" || ext == ".pcapng") && !processedFiles[path] {
+				filesToProcess = append(filesToProcess, path)
+			}
+			return nil
+		}
+
+		err := filepath.Walk(p.FolderPath, walkFunc)
+		if err != nil {
+			logging.Log.Errorf("Ошибка сканирования папки %s: %v", p.FolderPath, err)
+		}
+
+		// Обрабатываем найденные файлы последовательно
+		for _, file := range filesToProcess {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+
+			logging.Log.Infof("Обработка файла из папки: %s", file)
+			args := []string{"-r", file, "-T", "ek"}
+			err = runTsharkCommand(ctx, exe, args, p.ID, trigger)
+			if err != nil && err != context.Canceled {
+				logging.Log.Warnf("Ошибка обработки файла %s: %v", file, err)
+			}
+			
+			processedFiles[file] = true // Отмечаем как обработанный
+		}
+
+		// Если мониторинг новых файлов выключен, выходим после одного прохода
+		if !p.MonitorNewFiles {
+			break
+		}
+
+		// Ждем перед следующим сканированием папки
+		time.Sleep(5 * time.Second)
+	}
+
+	return nil
+}
+
+// runTsharkCommand запускает команду Tshark и читает её STDOUT
 func runTsharkCommand(ctx context.Context, exe string, args []string, sourceID string, trigger func()) error {
 	cmd := exec.CommandContext(ctx, exe, args...)
 
-	// Настройка для Windows, чтобы Tshark убивался при закрытии основного процесса.
+	// Настройка для Windows: Job Objects или группы процессов (п.28 ТЗ, защита от зомби-процессов Tshark)
 	cmd.SysProcAttr = &windows.SysProcAttr{
 		CreationFlags: windows.CREATE_NEW_PROCESS_GROUP,
 	}
@@ -61,7 +135,6 @@ func runTsharkCommand(ctx context.Context, exe string, args []string, sourceID s
 		return fmt.Errorf("ошибка запуска Tshark: %v", err)
 	}
 
-	// Канал для синхронизации завершения горутины чтения stderr
 	stderrDone := make(chan struct{})
 
 	// Чтение ошибок Tshark в отдельной горутине
@@ -78,15 +151,14 @@ func runTsharkCommand(ctx context.Context, exe string, args []string, sourceID s
 	var recordsAdded int64
 
 	scanner := bufio.NewScanner(stdout)
-	// Увеличиваем буфер, так как JSON может быть большим
+	// Увеличиваем буфер, так как JSON строки могут быть длинными
 	buf := make([]byte, 0, 64*1024)
-	scanner.Buffer(buf, 1024*1024)
+	scanner.Buffer(buf, 5*1024*1024) // До 5 МБ на строку
 
 	for scanner.Scan() {
 		line := scanner.Bytes()
 		
-		// В формате -T ek выводятся строки индекса и данные.
-		// Строки индекса {"index":{...}} нам не нужны, пропускаем.
+		// -T ek выводит строки индекса перед данными, пропускаем их
 		if len(line) > 0 && line[0] == '{' && string(line[1:8]) == "\"index\"" {
 			continue
 		}
@@ -98,24 +170,28 @@ func runTsharkCommand(ctx context.Context, exe string, args []string, sourceID s
 			continue
 		}
 
-		// Используем батч добавление в Redis для минимизации round-trip задержек
+		// Пачки в DragonflyDB (п.5.4 ТЗ)
 		err = data.PushBatchToList(sourceID, pairs)
 		if err != nil {
 			logging.Log.Errorf("Ошибка добавления батча в DragonflyDB: %v", err)
 		} else {
 			recordsAdded += int64(len(pairs))
 			if recordsAdded >= batchSize {
-				trigger()
+				trigger() // Вызов канала ПЗ (п.4.1 ТЗ)
 				recordsAdded = 0
 			}
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
+		// Ошибка чтения (может быть context canceled или EOF)
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		logging.Log.Errorf("Tshark stdout error: %v", err)
 	}
 
-	// Ожидаем завершения чтения stderr, чтобы предотвратить race condition и ошибки "file already closed"
+	// Ожидаем завершения чтения stderr, предотвращая panic/race condition
 	<-stderrDone
 
 	return cmd.Wait()
