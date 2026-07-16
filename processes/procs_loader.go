@@ -34,8 +34,8 @@ func LoadProcesses() error {
 	}
 
 	for k, v := range pf.Processes {
-		v.ID = k                             // Убеждаемся, что ID совпадает с ключом
-		v.Status = models.StatusStopped      // При загрузке все остановлены
+		v.ID = k                        // Убеждаемся, что ID совпадает с ключом
+		v.Status = models.StatusStopped // При загрузке все остановлены
 		processesMap[k] = v
 	}
 
@@ -125,4 +125,3 @@ func UpdateProcessStatus(id string, status models.ProcessStatus) {
 		processesMap[id] = p
 	}
 }
-

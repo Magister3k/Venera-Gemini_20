@@ -13,11 +13,11 @@ type Config struct {
 
 // GenericConfig содержит общие настройки приложения (раздел Generic по п.1.11 ТЗ).
 type GenericConfig struct {
-	Mode             string `toml:"mode"`              // Режим работы: "tray" (системный трей) или "service" (служба)
-	AutoStart        bool   `toml:"auto_start"`        // Автоматический старт процессов при запуске
-	MaxProcesses     int    `toml:"max_processes"`     // Максимальное количество одновременных процессов обработки (п.1.5 ТЗ: до 20)
-	WebServerPort    int    `toml:"web_server_port"`   // Порт для веб-интерфейса
-	LogRotationDays  int    `toml:"log_rotation_days"` // Количество дней для хранения логов до их ротации (п.7.1 ТЗ)
+	Mode            string `toml:"mode"`              // Режим работы: "tray" (системный трей) или "service" (служба)
+	AutoStart       bool   `toml:"auto_start"`        // Автоматический старт процессов при запуске
+	MaxProcesses    int    `toml:"max_processes"`     // Максимальное количество одновременных процессов обработки (п.1.5 ТЗ: до 20)
+	WebServerPort   int    `toml:"web_server_port"`   // Порт для веб-интерфейса
+	LogRotationDays int    `toml:"log_rotation_days"` // Количество дней для хранения логов до их ротации (п.7.1 ТЗ)
 }
 
 // PathsConfig содержит пути к внешним зависимостям и конфигурационным файлам (раздел Paths по п.1.11 ТЗ).
@@ -33,11 +33,11 @@ type PathsConfig struct {
 
 // DragonflyDBConfig содержит параметры подключения и работы с СУБД DragonflyDB (раздел DragonflyDB по п.1.11 ТЗ).
 type DragonflyDBConfig struct {
-	Host        string        `toml:"host"`       // IP или хост подключения
-	Port        int           `toml:"port"`       // Порт подключения (обычно 6379)
-	Password    string        `toml:"password"`   // Пароль для доступа (если установлен)
-	BatchSize   int           `toml:"batch_size"` // Порог СЗn (п.4.1 ТЗ): количество записей для пакетной обработки в list
-	Timeout     time.Duration `toml:"timeout"`    // Таймер ТПn (п.4.2 ТЗ): время ожидания для обработки записей, если порог не достигнут
+	Host      string        `toml:"host"`       // IP или хост подключения
+	Port      int           `toml:"port"`       // Порт подключения (обычно 6379)
+	Password  string        `toml:"password"`   // Пароль для доступа (если установлен)
+	BatchSize int           `toml:"batch_size"` // Порог СЗn (п.4.1 ТЗ): количество записей для пакетной обработки в list
+	Timeout   time.Duration `toml:"timeout"`    // Таймер ТПn (п.4.2 ТЗ): время ожидания для обработки записей, если порог не достигнут
 }
 
 // PostgreSQLConfig содержит параметры подключения к СУБД PostgreSQL (раздел PostgreSQL по п.1.11 ТЗ).
@@ -56,4 +56,3 @@ type SystemConfig struct {
 	DiskCriticalThreshold float64 `toml:"disk_critical_threshold"` // Процент (M), при котором останавливать процессы (п.17.2 ТЗ)
 	RamCriticalThreshold  float64 `toml:"ram_critical_threshold"`  // Процент свободной RAM (L) для принудительной остановки (п.17.2 ТЗ)
 }
-

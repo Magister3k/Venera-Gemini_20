@@ -7,9 +7,9 @@ require (
 	github.com/getlantern/systray v1.2.2
 	github.com/google/cel-go v0.29.2
 	github.com/jackc/pgx/v5 v5.10.0
+	github.com/jung-kurt/gofpdf v1.16.2
 	github.com/kardianos/service v1.3.0
 	github.com/redis/go-redis/v9 v9.21.0
-	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/sirupsen/logrus v1.9.4
 	github.com/valyala/fastjson v1.6.10
 	golang.org/x/sys v0.47.0
@@ -27,17 +27,11 @@ require (
 	github.com/getlantern/ops v0.0.0-20231025133620-f368ab734534 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
-	github.com/lufia/plan9stats v0.0.0-20260627054121-477a66015f15 // indirect
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c // indirect
-	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
-	github.com/tklauser/go-sysconf v0.4.0 // indirect
-	github.com/tklauser/numcpus v0.12.0 // indirect
-	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel v1.44.0 // indirect
 	go.opentelemetry.io/otel/metric v1.44.0 // indirect

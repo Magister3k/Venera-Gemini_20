@@ -20,12 +20,12 @@ func TestBackupManifest(t *testing.T) {
 	// Создаем временный файл
 	testManifest := "manifest.xml"
 	manifest.ManifestFilePath = testManifest
-	
+
 	err := os.WriteFile(testManifest, []byte("<xml/>"), 0644)
 	if err != nil {
 		t.Fatalf("Ошибка создания тестового манифеста")
 	}
-	
+
 	defer func() {
 		os.Remove(testManifest)
 		os.Remove(manifest.ManifestBackupPath)

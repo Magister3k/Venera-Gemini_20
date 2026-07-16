@@ -22,7 +22,7 @@ func TestGenerateID(t *testing.T) {
 func TestScanFiles(t *testing.T) {
 	// Создаем временную структуру папок
 	tempDir := t.TempDir()
-	
+
 	// Файлы в корне
 	os.WriteFile(filepath.Join(tempDir, "test1.pcap"), []byte("data"), 0644)
 	os.WriteFile(filepath.Join(tempDir, "test2.txt"), []byte("data"), 0644)

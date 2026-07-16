@@ -140,11 +140,11 @@ func GetFilterData() (*FilterLists, bool) {
 // IsKeyAllowed проверяет, есть ли ключ в белом списке
 func IsKeyAllowed(key string) bool {
 	fl := filterData.Load().(*FilterLists)
-	
+
 	if len(fl.WhitelistKeys) == 0 {
-		return true 
+		return true
 	}
-	
+
 	return fl.WhitelistKeys[key]
 }
 
@@ -157,7 +157,7 @@ func IsValueBlocked(value string) bool {
 // CheckControlValue проверяет, есть ли совпадение в списке контроля
 func CheckControlValue(key, value string) bool {
 	cl := controlData.Load().(*ControlList)
-	
+
 	expectedValue, ok := cl.Values[key]
 	if ok && expectedValue == value {
 		return true

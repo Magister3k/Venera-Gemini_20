@@ -39,7 +39,7 @@ func InitLogger() error {
 	// Пишем в файл и в консоль
 	mw := io.MultiWriter(os.Stdout, file)
 	Log.SetOutput(mw)
-	
+
 	// Логирование версии (п.7.3)
 	Log.Infof("Запуск Venera (версия будет здесь)")
 

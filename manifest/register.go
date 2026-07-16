@@ -16,7 +16,7 @@ var ManifestBackupPath = "manifest.xml.bak"
 
 // CurrentAppVersion - предполагается, что она устанавливается при сборке
 // или берется из глобальных констант приложения.
-var CurrentAppVersion = "1.0.0" 
+var CurrentAppVersion = "1.0.0"
 
 // ProviderName - имя ETW провайдера
 const ProviderName = "VeneraApp"
@@ -42,7 +42,7 @@ func Init() error {
 		}
 	} else {
 		// Проверка версии и обновление, если необходимо
-		// Для простоты сверяем текущую версию приложения с какой-либо внутренней меткой, 
+		// Для простоты сверяем текущую версию приложения с какой-либо внутренней меткой,
 		// либо перезаписываем, если версия обновилась.
 		// Здесь логика обновления: если требуется обновление, вызываем UpdateManifest
 		// (В реальной жизни нужно парсить существующий XML или реестр).
@@ -81,7 +81,7 @@ func checkVersionNeedsUpdate() bool {
 	// или из реестра. Для текущей реализации просто проверяем наличие файла бэкапа и текущей версии
 	// заглушка: всегда возвращаем false, если манифест уже есть, чтобы не спамить.
 	// TODO: Реализовать чтение версии из XML.
-	return false 
+	return false
 }
 
 // RegisterManifest регистрирует XML манифест через wevtutil
@@ -184,7 +184,7 @@ func LogManifestVersion() error {
 	// Команда: eventcreate /ID 2003 /L Application /T INFORMATION /SO VeneraApp /D "Manifest updated to version X"
 	msg := fmt.Sprintf("Manifest updated to version %s", CurrentAppVersion)
 	cmd := exec.Command("eventcreate", "/ID", fmt.Sprintf("%d", EventIDManifestUpdated), "/L", "Application", "/T", "INFORMATION", "/SO", ProviderName, "/D", msg)
-	
+
 	err := cmd.Run()
 	if err != nil {
 		// Eventcreate может потребовать прав администратора.
@@ -195,17 +195,17 @@ func LogManifestVersion() error {
 
 // notifyError выводит GUI-уведомление (8.2) при ошибках
 func notifyError(message string) {
-	// В зависимости от того, запущено ли приложение в режиме systray, 
+	// В зависимости от того, запущено ли приложение в режиме systray,
 	// выводим уведомление.
 	// Примечание: getlantern/systray не имеет встроенного метода ShowNotification/Balloon,
 	// поэтому здесь мы добавляем пункт меню с ошибкой или логируем.
 	// Для реальных Balloon-уведомлений на Windows лучше использовать github.com/go-toast/toast.
-	
-	// Здесь добавим пункт меню с пометкой Ошибка. 
+
+	// Здесь добавим пункт меню с пометкой Ошибка.
 	// В реальной архитектуре Venera этот вызов должен уходить в подсистему логирования или интерфейса.
 	fmt.Printf("GUI УВЕДОМЛЕНИЕ (ОШИБКА РЕГИСТРАЦИИ): %s\n", message)
-	
-	// Попытка использовать systray, если он проинициализирован. 
+
+	// Попытка использовать systray, если он проинициализирован.
 	// Поскольку systray инициализируется асинхронно, прямое добавление может упасть, если петля не запущена.
 	// Для безопасной интеграции с ТЗ (п.8.2) оставляем этот вызов абстрактным:
 	// systray.AddMenuItem("Ошибка: "+message, "Ошибка манифеста")

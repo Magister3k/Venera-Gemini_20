@@ -96,7 +96,7 @@ func processFolder(ctx context.Context, exe string, p models.ProcessConfig, trig
 			if err != nil && err != context.Canceled {
 				logging.Log.Warnf("Ошибка обработки файла %s: %v", file, err)
 			}
-			
+
 			processedFiles[file] = true // Отмечаем как обработанный
 		}
 
@@ -157,7 +157,7 @@ func runTsharkCommand(ctx context.Context, exe string, args []string, sourceID s
 
 	for scanner.Scan() {
 		line := scanner.Bytes()
-		
+
 		// -T ek выводит строки индекса перед данными, пропускаем их
 		if len(line) > 0 && line[0] == '{' && string(line[1:8]) == "\"index\"" {
 			continue

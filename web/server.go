@@ -19,11 +19,11 @@ func StartWebServer() {
 	addr := fmt.Sprintf(":%d", port)
 
 	mux := http.NewServeMux()
-	
+
 	// API routes
 	mux.HandleFunc("/api/processes", handleProcesses)
 	mux.HandleFunc("/api/data", handleData)
-	
+
 	// Статика
 	fs := http.FileServer(http.Dir("web/static"))
 	mux.Handle("/", fs)
@@ -66,11 +66,11 @@ func handleData(w http.ResponseWriter, r *http.Request) {
 
 	// Для упрощения показываем кол-во в очереди
 	len, _ := data.GetListLength(sourceID)
-	
+
 	resp := map[string]interface{}{
 		"source": sourceID,
 		"queue":  len,
 	}
-	
+
 	json.NewEncoder(w).Encode(resp)
 }

@@ -58,4 +58,3 @@ func ScanFiles(root string, scanSubfolders bool, allowedExts []string) ([]string
 
 	return files, err
 }
-

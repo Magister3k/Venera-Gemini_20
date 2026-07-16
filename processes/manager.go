@@ -18,10 +18,10 @@ var (
 
 // RunningProcess описывает состояние запущенного процесса
 type RunningProcess struct {
-	Config   models.ProcessConfig
-	Cancel   context.CancelFunc
-	Trigger  chan struct{} // Канал для сигнализации о достижении порога (ПЗ)
-	WG       sync.WaitGroup
+	Config  models.ProcessConfig
+	Cancel  context.CancelFunc
+	Trigger chan struct{} // Канал для сигнализации о достижении порога (ПЗ)
+	WG      sync.WaitGroup
 }
 
 type ProcessManager struct {
@@ -29,7 +29,7 @@ type ProcessManager struct {
 	activeProcs   map[string]*RunningProcess
 	activeWorkers int
 	workerMu      sync.Mutex
-	
+
 	// sourceLocks предотвращает одновременный запуск нескольких воркеров для одного источника (п.4.2 ТЗ)
 	sourceLocks   map[string]bool
 	sourceLocksMu sync.Mutex
@@ -52,7 +52,7 @@ func (pm *ProcessManager) StartProcess(p models.ProcessConfig) error {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	rp := &RunningProcess{
 		Config:  p,
 		Cancel:  cancel,
@@ -66,7 +66,7 @@ func (pm *ProcessManager) StartProcess(p models.ProcessConfig) error {
 
 	rp.WG.Add(1)
 	go pm.runCollectionProcess(ctx, rp)
-	
+
 	rp.WG.Add(1)
 	go pm.runTaskManagementProcess(ctx, rp)
 
@@ -81,7 +81,7 @@ func (pm *ProcessManager) StopProcess(id string) error {
 		pm.mu.Unlock()
 		return fmt.Errorf("процесс %s не запущен", id)
 	}
-	
+
 	rp.Cancel() // Отменяем контекст (завершает Tshark и горутины)
 	delete(pm.activeProcs, id)
 	pm.mu.Unlock()
@@ -174,7 +174,7 @@ func (pm *ProcessManager) spawnDataWorker(sourceID string) {
 		pm.sourceLocksMu.Lock()
 		pm.sourceLocks[sourceID] = false
 		pm.sourceLocksMu.Unlock()
-		return 
+		return
 	}
 	pm.activeWorkers++
 	pm.workerMu.Unlock()
@@ -190,7 +190,7 @@ func (pm *ProcessManager) spawnDataWorker(sourceID string) {
 			pm.sourceLocks[sourceID] = false
 			pm.sourceLocksMu.Unlock()
 		}()
-		
+
 		pm.runDataProcessingTask(sourceID, false)
 	}()
 }

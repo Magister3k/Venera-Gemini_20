@@ -17,4 +17,3 @@ func GenerateID() string {
 	}
 	return hex.EncodeToString(bytes)
 }
-

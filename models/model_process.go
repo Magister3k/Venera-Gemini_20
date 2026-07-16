@@ -21,16 +21,16 @@ const (
 // ProcessConfig описывает параметры отдельного процесса сбора данных.
 // Эти данные хранятся в файле processes.toml с группировкой по ID процесса (п.1.9 ТЗ).
 type ProcessConfig struct {
-	ID                 string            `toml:"id"`                           // Уникальный идентификатор процесса
-	Type               ProcessSourceType `toml:"type"`                         // Тип источника (network, folder, file)
-	Name               string            `toml:"name"`                         // Пользовательское название источника (source)
-	IP                 string            `toml:"ip,omitempty"`                 // Для SourceNetwork: IP-адрес сетевой карты
-	UDPPort            int               `toml:"udp_port,omitempty"`           // Для SourceNetwork: прослушиваемый UDP-порт
-	FolderPath         string            `toml:"folder_path,omitempty"`        // Для SourceFolder: путь к папке с файлами
-	ScanSubfolders     bool              `toml:"scan_subfolders,omitempty"`    // Для SourceFolder: режим сканирования подпапок (п.13 ТЗ)
-	MonitorNewFiles    bool              `toml:"monitor_new_files,omitempty"`  // Для SourceFolder: режим мониторинга новых файлов (п.13 ТЗ)
-	FilePath           string            `toml:"file_path,omitempty"`          // Для SourceFile: абсолютный путь к отдельному файлу
-	Status             ProcessStatus     `toml:"-"`                            // Текущий статус (не сохраняется в toml)
+	ID              string            `toml:"id"`                          // Уникальный идентификатор процесса
+	Type            ProcessSourceType `toml:"type"`                        // Тип источника (network, folder, file)
+	Name            string            `toml:"name"`                        // Пользовательское название источника (source)
+	IP              string            `toml:"ip,omitempty"`                // Для SourceNetwork: IP-адрес сетевой карты
+	UDPPort         int               `toml:"udp_port,omitempty"`          // Для SourceNetwork: прослушиваемый UDP-порт
+	FolderPath      string            `toml:"folder_path,omitempty"`       // Для SourceFolder: путь к папке с файлами
+	ScanSubfolders  bool              `toml:"scan_subfolders,omitempty"`   // Для SourceFolder: режим сканирования подпапок (п.13 ТЗ)
+	MonitorNewFiles bool              `toml:"monitor_new_files,omitempty"` // Для SourceFolder: режим мониторинга новых файлов (п.13 ТЗ)
+	FilePath        string            `toml:"file_path,omitempty"`         // Для SourceFile: абсолютный путь к отдельному файлу
+	Status          ProcessStatus     `toml:"-"`                           // Текущий статус (не сохраняется в toml)
 }
 
 // ProcessesFile структура для хранения процессов в корневом TOML файле (processes.toml).
@@ -46,4 +46,3 @@ type DataEntry struct {
 	Value     string // Значение (value)
 	Timestamp int64  // Unix timestamp (мс) (используется для date_first и date_last через UPSERT)
 }
-

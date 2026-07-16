@@ -38,7 +38,7 @@ func startLogRotation(logDir string, keepDays int) {
 				// Сжимаем (п.7.2)
 				logPath := filepath.Join(logDir, f.Name())
 				gzPath := logPath + ".gz"
-				
+
 				err := compressFile(logPath, gzPath)
 				if err != nil {
 					Log.Errorf("Ошибка сжатия лога %s: %v", logPath, err)
