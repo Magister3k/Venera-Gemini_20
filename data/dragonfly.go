@@ -44,6 +44,28 @@ func InitDragonflyDB() error {
 	return fmt.Errorf("не удалось подключиться к DragonflyDB после 5 попыток: %w", err)
 }
 
+// PushBatchToList добавляет несколько записей в список за один вызов
+func PushBatchToList(sourceID string, data []string) error {
+	if len(data) == 0 {
+		return nil
+	}
+	
+	listKey := "list:" + sourceID
+	
+	// Используем variadic arguments для RPush, чтобы вставить весь батч одним вызовом
+	// go-redis RPush принимает interface{}, поэтому преобразуем []string в []interface{}
+	args := make([]interface{}, len(data))
+	for i, v := range data {
+		args[i] = v
+	}
+	
+	err := DragonflyClient.RPush(ctx, listKey, args...).Err()
+	if err != nil {
+		return fmt.Errorf("ошибка при пакетном добавлении в list %s: %v", listKey, err)
+	}
+	return nil
+}
+
 func PushToList(sourceID, data string) error {
 	listKey := "list:" + sourceID
 	err := DragonflyClient.RPush(ctx, listKey, data).Err()
@@ -62,8 +84,8 @@ func PopBatchFromList(sourceID string, count int64) ([]string, error) {
 	listKey := "list:" + sourceID
 	
 	if count == -1 {
-		// Получить все элементы и удалить
-		pipe := DragonflyClient.Pipeline()
+		// Получить все элементы и удалить. Используем TxPipeline для атомарности транзакции MULTI/EXEC
+		pipe := DragonflyClient.TxPipeline()
 		rangeCmd := pipe.LRange(ctx, listKey, 0, -1)
 		pipe.Del(ctx, listKey)
 		_, err := pipe.Exec(ctx)
@@ -78,6 +100,34 @@ func PopBatchFromList(sourceID string, count int64) ([]string, error) {
 		return nil, fmt.Errorf("ошибка при извлечении пакета из %s: %v", listKey, err)
 	}
 	return res, nil
+}
+
+// ZSetEntry структура для батч-добавления
+type ZSetEntry struct {
+	Key       string
+	Value     string
+	Timestamp int64
+}
+
+// AddBatchToSortedSet добавляет пачку отфильтрованных пар в Sorted Set
+func AddBatchToSortedSet(sourceID string, entries []ZSetEntry) error {
+	setKey := "ss:" + sourceID
+	
+	members := make([]redis.Z, 0, len(entries))
+	for _, e := range entries {
+		member := fmt.Sprintf("%s:%s", e.Key, e.Value)
+		members = append(members, redis.Z{
+			Score:  float64(e.Timestamp),
+			Member: member,
+		})
+	}
+	
+	err := DragonflyClient.ZAdd(ctx, setKey, members...).Err()
+	
+	if err != nil {
+		return fmt.Errorf("ошибка при батч-добавлении в sorted set %s: %v", setKey, err)
+	}
+	return nil
 }
 
 func AddToSortedSet(sourceID string, key, value string, timestamp int64) error {

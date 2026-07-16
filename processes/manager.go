@@ -20,9 +20,8 @@ var (
 type RunningProcess struct {
 	Config   models.ProcessConfig
 	Cancel   context.CancelFunc
-	Signal   *sync.Cond
+	Trigger  chan struct{} // Заменили sync.Cond на канал для надежной сигнализации
 	WG       sync.WaitGroup
-	IsActive bool
 }
 
 type ProcessManager struct {
@@ -49,14 +48,10 @@ func (pm *ProcessManager) StartProcess(p models.ProcessConfig) error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	
-	m := sync.Mutex{}
-	cond := sync.NewCond(&m)
-
 	rp := &RunningProcess{
-		Config:   p,
-		Cancel:   cancel,
-		Signal:   cond,
-		IsActive: true,
+		Config:  p,
+		Cancel:  cancel,
+		Trigger: make(chan struct{}, 1), // Буферизованный канал на 1 сигнал
 	}
 
 	pm.activeProcs[p.ID] = rp
@@ -82,8 +77,7 @@ func (pm *ProcessManager) StopProcess(id string) error {
 		return fmt.Errorf("процесс %s не запущен", id)
 	}
 	
-	rp.IsActive = false
-	rp.Cancel() // Отменяем контекст
+	rp.Cancel() // Отменяем контекст, горутины завершатся
 	delete(pm.activeProcs, id)
 	pm.mu.Unlock()
 
@@ -103,10 +97,13 @@ func (pm *ProcessManager) StopProcess(id string) error {
 func (pm *ProcessManager) runCollectionProcess(ctx context.Context, rp *RunningProcess) {
 	defer rp.WG.Done()
 
+	// Функция-триггер безопасно отправляет сигнал в буферизованный канал
 	trigger := func() {
-		rp.Signal.L.Lock()
-		rp.Signal.Signal()
-		rp.Signal.L.Unlock()
+		select {
+		case rp.Trigger <- struct{}{}:
+		default:
+			// Канал уже содержит сигнал, пропускаем
+		}
 	}
 
 	var err error
@@ -137,35 +134,17 @@ func (pm *ProcessManager) runTaskManagementProcess(ctx context.Context, rp *Runn
 	ticker := time.NewTicker(config.GlobalConfig.DragonflyDB.Timeout)
 	defer ticker.Stop()
 
-	// Горутина для обработки сигнала cond, чтобы не блокировать select
-	signalChan := make(chan struct{})
-	go func() {
-		for {
-			rp.Signal.L.Lock()
-			rp.Signal.Wait()
-			rp.Signal.L.Unlock()
-			
-			if !rp.IsActive {
-				return
-			}
-			
-			select {
-			case signalChan <- struct{}{}:
-			default:
-			}
-		}
-	}()
-
 	for {
 		select {
 		case <-ctx.Done():
-			rp.Signal.L.Lock()
-			rp.Signal.Broadcast() // Разбудить горутину ожидания, если она спит
-			rp.Signal.L.Unlock()
-			return
-		case <-signalChan: // Сигнал о достижении порога (ПЗ)
+			return // Корректно выходим при отмене контекста
+		case <-rp.Trigger: // Сигнал о достижении порога (ПЗ)
 			pm.spawnDataWorker(rp.Config.ID)
 		case <-ticker.C: // Срабатывание таймера (ТПn)
+			// Периодически очищаем SortedSet от устаревших данных (старше 24 часов)
+			olderThan := time.Now().Add(-24 * time.Hour).UnixMilli()
+			_ = data.CleanupSortedSet(rp.Config.ID, olderThan)
+
 			pm.spawnDataWorker(rp.Config.ID)
 		}
 	}
@@ -202,53 +181,69 @@ func (pm *ProcessManager) runDataProcessingTask(sourceID string, isFinal bool) {
 		count = -1 // Забрать все
 	}
 	
-	entries, err := data.PopBatchFromList(sourceID, count)
-	if err != nil {
-		logging.Log.Errorf("Ошибка извлечения из list (%s): %v", sourceID, err)
-		return
-	}
-	if len(entries) == 0 {
-		return
-	}
+	// Загружаем фильтры один раз на весь батч для минимизации оверхеда atomic.Load
+	currentFilters, _ := filter.GetFilterData()
 
-	var pgEntries []data.DataEntry
-
-	for _, entryStr := range entries {
-		key, value, ts, err := data.ImprovedParseEntry(entryStr)
+	for {
+		entries, err := data.PopBatchFromList(sourceID, count)
 		if err != nil {
-			logging.Log.Warnf("Ошибка парсинга записи: %v", err)
-			continue
+			logging.Log.Errorf("Ошибка извлечения из list (%s): %v", sourceID, err)
+			return
+		}
+		if len(entries) == 0 {
+			break // Очередь пуста, выходим из воркера
 		}
 
-		if !filter.IsKeyAllowed(key) {
-			continue
-		}
-		if filter.IsValueBlocked(value) {
-			continue
+		var pgEntries []data.DataEntry
+		// Буфер для накопления записей в SortedSet
+		var ssEntries []data.ZSetEntry
+
+		for _, entryStr := range entries {
+			key, value, ts, err := data.ImprovedParseEntry(entryStr)
+			if err != nil {
+				logging.Log.Warnf("Ошибка парсинга записи: %v", err)
+				continue
+			}
+
+			// Быстрая проверка по заранее загруженным фильтрам
+			if len(currentFilters.WhitelistKeys) > 0 && !currentFilters.WhitelistKeys[key] {
+				continue
+			}
+			if currentFilters.BlacklistValues[value] {
+				continue
+			}
+
+			ssEntries = append(ssEntries, data.ZSetEntry{Key: key, Value: value, Timestamp: ts})
+			
+			pgEntries = append(pgEntries, data.DataEntry{
+				Source:    sourceID,
+				Key:       key,
+				Value:     value,
+				Timestamp: ts,
+			})
 		}
 
-		// Добавляем в Sorted Set для отображения
-		err = data.AddToSortedSet(sourceID, key, value, ts)
-		if err != nil {
-			logging.Log.Errorf("Ошибка добавления в sorted set: %v", err)
-			continue
+		// Добавляем в Sorted Set батчем
+		if len(ssEntries) > 0 {
+			err = data.AddBatchToSortedSet(sourceID, ssEntries)
+			if err != nil {
+				logging.Log.Errorf("Ошибка пакетного добавления в sorted set: %v", err)
+			}
 		}
-		
-		pgEntries = append(pgEntries, data.DataEntry{
-			Source:    sourceID,
-			Key:       key,
-			Value:     value,
-			Timestamp: ts,
-		})
-	}
 
-	// 5.5.5 Перемещение в PostgreSQL
-	if len(pgEntries) > 0 {
-		err = data.InsertBatch(sourceID, pgEntries)
-		if err != nil {
-			logging.Log.Errorf("Ошибка вставки в PostgreSQL: %v", err)
-		} else {
-			logging.Log.Infof("Успешно перенесено %d записей в PostgreSQL (источник: %s)", len(pgEntries), sourceID)
+		// 5.5.5 Перемещение в PostgreSQL
+		if len(pgEntries) > 0 {
+			err = data.InsertBatch(sourceID, pgEntries)
+			if err != nil {
+				logging.Log.Errorf("Ошибка вставки в PostgreSQL: %v", err)
+			} else {
+				// logging.Log.Infof("Успешно перенесено %d записей в PostgreSQL (источник: %s)", len(pgEntries), sourceID)
+			}
+		}
+
+		// Если это был финальный проход (count == -1), выходим после одного раза
+		if isFinal {
+			break
 		}
 	}
 }

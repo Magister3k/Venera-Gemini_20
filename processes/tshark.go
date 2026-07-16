@@ -61,8 +61,12 @@ func runTsharkCommand(ctx context.Context, exe string, args []string, sourceID s
 		return fmt.Errorf("ошибка запуска Tshark: %v", err)
 	}
 
+	// Канал для синхронизации завершения горутины чтения stderr
+	stderrDone := make(chan struct{})
+
 	// Чтение ошибок Tshark в отдельной горутине
 	go func() {
+		defer close(stderrDone)
 		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
 			errText := scanner.Text()
@@ -94,16 +98,15 @@ func runTsharkCommand(ctx context.Context, exe string, args []string, sourceID s
 			continue
 		}
 
-		for _, pair := range pairs {
-			err := data.PushToList(sourceID, pair)
-			if err != nil {
-				logging.Log.Errorf("Ошибка добавления в DragonflyDB: %v", err)
-			} else {
-				recordsAdded++
-				if recordsAdded >= batchSize {
-					trigger()
-					recordsAdded = 0
-				}
+		// Используем батч добавление в Redis для минимизации round-trip задержек
+		err = data.PushBatchToList(sourceID, pairs)
+		if err != nil {
+			logging.Log.Errorf("Ошибка добавления батча в DragonflyDB: %v", err)
+		} else {
+			recordsAdded += int64(len(pairs))
+			if recordsAdded >= batchSize {
+				trigger()
+				recordsAdded = 0
 			}
 		}
 	}
@@ -111,6 +114,9 @@ func runTsharkCommand(ctx context.Context, exe string, args []string, sourceID s
 	if err := scanner.Err(); err != nil {
 		logging.Log.Errorf("Tshark stdout error: %v", err)
 	}
+
+	// Ожидаем завершения чтения stderr, чтобы предотвратить race condition и ошибки "file already closed"
+	<-stderrDone
 
 	return cmd.Wait()
 }

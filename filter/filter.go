@@ -128,6 +128,15 @@ func LoadControlList() error {
 	return nil
 }
 
+// GetFilterData возвращает текущий снимок фильтров (используется для батч-обработки)
+func GetFilterData() (*FilterLists, bool) {
+	val := filterData.Load()
+	if val == nil {
+		return &FilterLists{}, false
+	}
+	return val.(*FilterLists), true
+}
+
 // IsKeyAllowed проверяет, есть ли ключ в белом списке
 func IsKeyAllowed(key string) bool {
 	fl := filterData.Load().(*FilterLists)
