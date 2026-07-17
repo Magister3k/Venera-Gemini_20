@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jung-kurt/gofpdf"
+	"github.com/signintech/gopdf"
 
 	"venera/config"
 	"venera/data"
@@ -153,61 +153,72 @@ func getEventLogErrors() []string {
 	return result
 }
 
-// ExportReportPDF создает отчет в формате PDF (п.9.1.16 ТЗ)
+// ExportReportPDF создает отчет в формате PDF на русском языке (п.9.1.16 ТЗ)
 func ExportReportPDF(report *DiagnosticReport, outputPath string) error {
-	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf := gopdf.GoPdf{}
+	pdf.Start(gopdf.Config{PageSize: *gopdf.PageSizeA4})
 	pdf.AddPage()
 
-	// Используем стандартный шрифт, не требующий внешних ttf для базового английского,
-	// но для русского нужен TTF. В gofpdf встроенной кириллицы нет, если не загрузить шрифт.
-	// Для простоты будем использовать транслит или базовые метрики,
-	// либо просто пропустим кириллицу (заменим на англ.), чтобы не тащить файлы шрифтов.
-	pdf.SetFont("Arial", "B", 16)
-	pdf.Cell(40, 10, "Venera System Diagnostic Report")
-	pdf.Ln(12)
+	// Добавляем поддержку кириллицы через шрифт (требуется ttf файл)
+	// В Windows стандартный шрифт Arial обычно лежит в C:\Windows\Fonts\arial.ttf
+	fontPath := "C:\\Windows\\Fonts\\arial.ttf"
+	err := pdf.AddTTFFont("Arial", fontPath)
+	if err != nil {
+		logging.Log.Warnf("Шрифт Arial не найден: %v. PDF может не отображать кириллицу.", err)
+		// Fallback без кириллицы (может выдать кракозябры или ошибки, если шрифт не загружен, но gopdf требует TTF для unicode)
+	}
+
+	err = pdf.SetFont("Arial", "", 16)
+	if err != nil {
+		return fmt.Errorf("ошибка установки шрифта: %v", err)
+	}
+
+	pdf.Cell(nil, "Отчет о диагностике системы Venera")
+	pdf.Br(20)
 
 	pdf.SetFont("Arial", "", 12)
 
 	addLine := func(label, value string) {
-		pdf.CellFormat(90, 8, label+":", "1", 0, "L", false, 0, "")
-		pdf.CellFormat(100, 8, value, "1", 1, "L", false, 0, "")
+		pdf.Cell(nil, fmt.Sprintf("%s: %s", label, value))
+		pdf.Br(10)
 	}
 
-	addLine("App Version", report.AppVersion)
-	addLine("App Mode", report.AppMode)
-	addLine("Config File Exists", fmt.Sprintf("%v", report.ConfigExists))
-	addLine("Manifest Registered", fmt.Sprintf("%v", report.ManifestRegistered))
-	addLine("Manifest Version", report.ManifestVersion)
-	addLine("Service Installed", fmt.Sprintf("%v", report.ServiceInstalled))
-	addLine("Service Status", report.ServiceStatus)
-	addLine("Tshark Available", fmt.Sprintf("%v", report.TsharkExists))
-	addLine("Podman Available", fmt.Sprintf("%v", report.PodmanExists))
-	addLine("DF Image Exists", fmt.Sprintf("%v", report.DragonflyImageExist))
-	addLine("PostgreSQL Connected", fmt.Sprintf("%v", report.PGConnected))
+	addLine("Версия приложения", report.AppVersion)
+	addLine("Режим работы", report.AppMode)
+	addLine("Файл конфигурации", fmt.Sprintf("%v", report.ConfigExists))
+	addLine("Манифест зарегистрирован", fmt.Sprintf("%v", report.ManifestRegistered))
+	addLine("Версия манифеста", report.ManifestVersion)
+	addLine("Служба установлена", fmt.Sprintf("%v", report.ServiceInstalled))
+	addLine("Статус службы", report.ServiceStatus)
+	addLine("Доступен Tshark", fmt.Sprintf("%v", report.TsharkExists))
+	addLine("Доступен Podman", fmt.Sprintf("%v", report.PodmanExists))
+	addLine("Образ DragonflyDB загружен", fmt.Sprintf("%v", report.DragonflyImageExist))
+	addLine("СУБД PostgreSQL подключена", fmt.Sprintf("%v", report.PGConnected))
 
-	pdf.Ln(5)
-	pdf.SetFont("Arial", "B", 14)
-	pdf.Cell(40, 10, "System Resources")
-	pdf.Ln(10)
+	pdf.Br(10)
+	pdf.SetFont("Arial", "", 14)
+	pdf.Cell(nil, "Системные ресурсы")
+	pdf.Br(15)
 	pdf.SetFont("Arial", "", 12)
 
-	addLine("Free RAM (MB)", fmt.Sprintf("%d", report.FreeRAMBytes/(1024*1024)))
-	addLine("Free RAM (%)", fmt.Sprintf("%.2f%%", report.FreeRAMPercent))
-	addLine("PG Disk Free (MB)", fmt.Sprintf("%d", report.PGDiskFreeBytes/(1024*1024)))
-	addLine("DF Disk Free (MB)", fmt.Sprintf("%d", report.DFDiskFreeBytes/(1024*1024)))
+	addLine("Свободная ОЗУ (MB)", fmt.Sprintf("%d", report.FreeRAMBytes/(1024*1024)))
+	addLine("Свободная ОЗУ (%)", fmt.Sprintf("%.2f%%", report.FreeRAMPercent))
+	addLine("Свободное место на диске БД PG (MB)", fmt.Sprintf("%d", report.PGDiskFreeBytes/(1024*1024)))
+	addLine("Свободное место на диске бэкапа DF (MB)", fmt.Sprintf("%d", report.DFDiskFreeBytes/(1024*1024)))
 
-	pdf.Ln(5)
-	pdf.SetFont("Arial", "B", 14)
-	pdf.Cell(40, 10, "Network Interfaces")
-	pdf.Ln(10)
+	pdf.Br(10)
+	pdf.SetFont("Arial", "", 14)
+	pdf.Cell(nil, "Сетевые адаптеры")
+	pdf.Br(15)
 	pdf.SetFont("Arial", "", 10)
 	for _, iface := range report.NetworkInterfaces {
-		pdf.MultiCell(190, 6, iface, "1", "L", false)
+		pdf.Cell(nil, iface)
+		pdf.Br(8)
 	}
 
-	err := pdf.OutputFileAndClose(outputPath)
+	err = pdf.WritePdf(outputPath)
 	if err != nil {
-		return fmt.Errorf("ошибка генерации PDF: %v", err)
+		return fmt.Errorf("ошибка сохранения PDF: %v", err)
 	}
 
 	logging.Log.Infof("Сгенерирован диагностический отчет: %s", outputPath)
