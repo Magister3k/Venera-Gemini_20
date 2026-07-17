@@ -15,8 +15,21 @@ var (
 	// mu защищает доступ к GlobalConfig для предотвращения Race Conditions (п. 27, 28 ТЗ)
 	mu           sync.RWMutex
 	GlobalConfig *models.Config
-	ConfigPath   = "config.toml"
+	ConfigPath   string
 )
+
+func init() {
+	// Определение пути к config.toml относительно исполняемого файла,
+	// что критически важно при запуске в качестве службы Windows (п.1.1 ТЗ),
+	// так как рабочий каталог службы может отличаться (например, C:\Windows\System32).
+	exePath, err := os.Executable()
+	if err == nil {
+		ConfigPath = filepath.Join(filepath.Dir(exePath), "config.toml")
+	} else {
+		// Fallback
+		ConfigPath = "config.toml"
+	}
+}
 
 // DefaultConfig возвращает конфигурацию по умолчанию со значениями, соответствующими ТЗ
 func DefaultConfig() *models.Config {
@@ -103,6 +116,21 @@ func LoadConfig() error {
 	}
 
 	GlobalConfig = tempConfig
+
+	// Применяем зеркалирование (разрешение) путей относительно папки с исполняемым файлом.
+	// Это гарантирует, что пути к настройкам, бэкапам и логам не зависят от рабочей директории службы.
+	exeDir := filepath.Dir(ConfigPath)
+	
+	resolvePath := func(p *string) {
+		if *p != "" && !filepath.IsAbs(*p) {
+			*p = filepath.Join(exeDir, *p)
+		}
+	}
+
+	resolvePath(&GlobalConfig.Paths.FilterList)
+	resolvePath(&GlobalConfig.Paths.ControlList)
+	resolvePath(&GlobalConfig.Paths.AlertsList)
+	resolvePath(&GlobalConfig.Paths.DbBackupDir)
 
 	// Создаем папку для бэкапов DragonflyDB, если указана
 	if GlobalConfig.Paths.DbBackupDir != "" {

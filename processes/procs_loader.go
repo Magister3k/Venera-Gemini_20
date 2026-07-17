@@ -3,6 +3,7 @@ package processes
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/BurntSushi/toml"
@@ -12,8 +13,20 @@ import (
 var (
 	processesMap = make(map[string]models.ProcessConfig)
 	processesMu  sync.RWMutex
-	ProcsPath    = "processes.toml"
+	ProcsPath    string
 )
+
+func init() {
+	// Определение пути к processes.toml относительно исполняемого файла
+	// Это важно при запуске в виде службы.
+	exePath, err := os.Executable()
+	if err == nil {
+		ProcsPath = filepath.Join(filepath.Dir(exePath), "processes.toml")
+	} else {
+		// Fallback
+		ProcsPath = "processes.toml"
+	}
+}
 
 // LoadProcesses загружает список процессов из файла processes.toml (п.1.9 ТЗ).
 func LoadProcesses() error {
@@ -34,8 +47,8 @@ func LoadProcesses() error {
 	}
 
 	for k, v := range pf.Processes {
-		v.ID = k                        // Убеждаемся, что ID совпадает с ключом
-		v.Status = models.StatusStopped // При загрузке все остановлены
+		v.ID = k                             // Убеждаемся, что ID совпадает с ключом
+		v.Status = models.StatusStopped      // При загрузке все остановлены
 		processesMap[k] = v
 	}
 
@@ -125,3 +138,4 @@ func UpdateProcessStatus(id string, status models.ProcessStatus) {
 		processesMap[id] = p
 	}
 }
+
