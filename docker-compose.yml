@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # In-memory СУБД DragonflyDB (кэш/очередь)
+  dragonflydb:
+    image: docker.io/dragonflydb/dragonfly:latest
+    container_name: venera_dragonfly
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    ulimits:
+      memlock: -1
+    command: ["--requirepass="] # Пароль не задан, как в config.toml по умолчанию
+
+  # Реляционная СУБД PostgreSQL (долгосрочное хранилище)
+  postgres:
+    image: postgres:15-alpine
+    container_name: venera_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: Venera
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # Основное приложение Venera
+  venera:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: venera_app
+    ports:
+      - "8080:8080" # Порт веб-интерфейса
+    depends_on:
+      - dragonflydb
+      - postgres
+    environment:
+      # Переопределение хостов для работы внутри Docker-сети
+      - VENERA_DB_HOST=postgres
+      - VENERA_CACHE_HOST=dragonflydb
+    volumes:
+      - ./config.toml:/app/config.toml
+      - ./processes.toml:/app/processes.toml
+      - ./settings:/app/settings
+      - venera_logs:/app/Logs
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  venera_logs:

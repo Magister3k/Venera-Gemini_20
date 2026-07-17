@@ -9,6 +9,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"venera/config"
+	"venera/manifest" // для получения CurrentAppVersion (п.7.3 ТЗ)
 )
 
 var Log *logrus.Logger
@@ -26,7 +27,7 @@ func InitLogger() error {
 		return fmt.Errorf("ошибка создания папки логов: %v", err)
 	}
 
-	// Имя файла: год-месяц-число_время_номер.log
+	// Имя файла: год-месяц-число_время_номер.log (п.7.1 ТЗ)
 	now := time.Now()
 	fileName := fmt.Sprintf("%s_%02d.log", now.Format("2006-01-02_15-04"), 1)
 	logPath := filepath.Join(logDir, fileName)
@@ -40,11 +41,28 @@ func InitLogger() error {
 	mw := io.MultiWriter(os.Stdout, file)
 	Log.SetOutput(mw)
 
-	// Логирование версии (п.7.3)
-	Log.Infof("Запуск Venera (версия будет здесь)")
+	// Получаем потокобезопасную конфигурацию
+	cfg := config.GetConfig()
 
-	// Запуск ротации логов в фоне (п.7.1, 7.2)
-	go startLogRotation(logDir, config.GlobalConfig.Generic.LogRotationDays)
+	// Интеграция с Windows Event Log (п.7.4 ТЗ)
+	eventHook, err := NewEventLogHook("VeneraApp")
+	if err == nil {
+		Log.AddHook(eventHook)
+	} else {
+		// Права администратора могут отсутствовать для регистрации источника в реестре
+		Log.Warnf("Не удалось подключить хук Windows Event Log (требуются права администратора?): %v", err)
+	}
+
+	// Логирование версии (п.7.3 ТЗ) - устранена заглушка
+	Log.Infof("Запуск Venera (Версия: %s)", manifest.CurrentAppVersion)
+
+	// Запуск ротации логов в фоне (п.7.1, 7.2 ТЗ)
+	// Используем дни из конфигурации. Если 0 - ставим дефолтные 7 дней
+	rotationDays := cfg.Generic.LogRotationDays
+	if rotationDays <= 0 {
+		rotationDays = 7
+	}
+	go startLogRotation(logDir, rotationDays)
 
 	return nil
 }

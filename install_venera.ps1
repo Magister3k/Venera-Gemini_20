@@ -1,11 +1,12 @@
 <#
 .SYNOPSIS
 Скрипт установки Venera как службы Windows.
+Этот скрипт использует встроенный механизм приложения (п.15.6 ТЗ).
 #>
 
 $ErrorActionPreference = 'Stop'
 
-# Требуются права администратора
+# Требуются права администратора (п.16.2 ТЗ)
 $IsAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $IsAdmin) {
     Write-Warning "Для установки службы требуются права администратора. Перезапустите скрипт от имени администратора."
@@ -14,25 +15,27 @@ if (-not $IsAdmin) {
 
 $ExePath = Join-Path -Path $PWD -ChildPath "venera.exe"
 if (-not (Test-Path $ExePath)) {
-    Write-Error "Файл venera.exe не найден. Выполните сборку."
+    Write-Error "Файл venera.exe не найден. Выполните сборку проекта."
     Exit
 }
 
-Write-Host "Установка службы VeneraSrv..." -ForegroundColor Cyan
+Write-Host "Установка службы VeneraSrv через внутренний модуль приложения..." -ForegroundColor Cyan
 
-# Проверка, существует ли уже служба
-$svc = Get-Service -Name "VeneraSrv" -ErrorAction SilentlyContinue
-if ($svc) {
-    Write-Warning "Служба VeneraSrv уже установлена."
+# Используем флаг --install_srv (или -i) из п.15.6 ТЗ
+& $ExePath --install_srv
+
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "Операция успешно завершена." -ForegroundColor Green
+    
+    # Попытка автоматического запуска
+    Write-Host "Попытка запуска службы..."
+    Start-Service -Name "VeneraSrv" -ErrorAction SilentlyContinue
+    if ($?) {
+        Write-Host "Служба VeneraSrv запущена." -ForegroundColor Green
+    } else {
+        Write-Warning "Не удалось запустить службу. Проверьте конфигурацию."
+    }
 } else {
-    New-Service -Name "VeneraSrv" -BinaryPathName $ExePath -DisplayName "Venera Service" -Description "Система сбора идентификаторов Venera" -StartupType Automatic
-    Write-Host "Служба успешно установлена." -ForegroundColor Green
+    Write-Error "Возникла ошибка при установке службы (Код: $LASTEXITCODE)."
 }
 
-# Попытка запуска
-try {
-    Start-Service -Name "VeneraSrv"
-    Write-Host "Служба VeneraSrv запущена." -ForegroundColor Green
-} catch {
-    Write-Warning "Не удалось запустить службу. Проверьте логи."
-}

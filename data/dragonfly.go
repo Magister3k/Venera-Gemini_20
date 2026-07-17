@@ -82,8 +82,12 @@ func GetListLength(sourceID string) (int64, error) {
 }
 
 func PopBatchFromList(sourceID string, count int64) ([]string, error) {
-	listKey := "list:" + sourceID
+	if DragonflyClient == nil {
+		return nil, fmt.Errorf("клиент DragonflyDB не инициализирован")
+	}
 
+	listKey := "list:" + sourceID
+	
 	if count == -1 {
 		// Получить все элементы и удалить. Используем TxPipeline для атомарности транзакции MULTI/EXEC
 		pipe := DragonflyClient.TxPipeline()
@@ -95,7 +99,7 @@ func PopBatchFromList(sourceID string, count int64) ([]string, error) {
 		}
 		return rangeCmd.Val(), nil
 	}
-
+	
 	res, err := DragonflyClient.LPopCount(ctx, listKey, int(count)).Result()
 	if err != nil && err != redis.Nil {
 		return nil, fmt.Errorf("ошибка при извлечении пакета из %s: %v", listKey, err)

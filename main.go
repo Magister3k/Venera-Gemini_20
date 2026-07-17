@@ -20,6 +20,7 @@ import (
 	"venera/notify"
 	"venera/processes"
 	"venera/services"
+	"venera/sql"
 	"venera/tray"
 	"venera/web"
 )
@@ -237,8 +238,13 @@ func handleCLICommands(
 	}
 
 	if createPgDB {
-		fmt.Println("Инициализация базы данных PostgreSQL... (Требуется реализация выполнения sql/create_pg_db.sql)")
-		// Подключение к БД 'postgres' и выполнение CREATE DATABASE если нужно
+		fmt.Println("Инициализация базы данных PostgreSQL... (п.15.5 ТЗ)")
+		err := sql.InitializeDatabase(&cfg.PostgreSQL)
+		if err != nil {
+			fmt.Printf("Ошибка создания базы PostgreSQL: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("База данных успешно инициализирована.")
 		os.Exit(0)
 	}
 

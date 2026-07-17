@@ -1,7 +1,6 @@
 package logging
 
 import (
-	"archive/tar"
 	"compress/gzip"
 	"io"
 	"os"
@@ -10,7 +9,7 @@ import (
 	"time"
 )
 
-// startLogRotation периодически проверяет старые логи и сжимает их.
+// startLogRotation периодически проверяет старые логи и сжимает их в фоне (п.7.1, 7.2 ТЗ).
 func startLogRotation(logDir string, keepDays int) {
 	ticker := time.NewTicker(24 * time.Hour)
 	defer ticker.Stop()
@@ -18,7 +17,9 @@ func startLogRotation(logDir string, keepDays int) {
 	for range ticker.C {
 		files, err := os.ReadDir(logDir)
 		if err != nil {
-			Log.Errorf("Ошибка чтения папки логов для ротации: %v", err)
+			if Log != nil {
+				Log.Errorf("Ошибка чтения папки логов для ротации: %v", err)
+			}
 			continue
 		}
 
@@ -34,24 +35,30 @@ func startLogRotation(logDir string, keepDays int) {
 				continue
 			}
 
+			// Если файл старше cutoff (п.7.1)
 			if info.ModTime().Before(cutoff) {
-				// Сжимаем (п.7.2)
 				logPath := filepath.Join(logDir, f.Name())
+				// Сжатие логов в архив формата gz (п.7.2 ТЗ)
 				gzPath := logPath + ".gz"
 
-				err := compressFile(logPath, gzPath)
+				err := compressFileGZ(logPath, gzPath)
 				if err != nil {
-					Log.Errorf("Ошибка сжатия лога %s: %v", logPath, err)
+					if Log != nil {
+						Log.Errorf("Ошибка сжатия лога %s: %v", logPath, err)
+					}
 				} else {
-					Log.Infof("Лог %s сжат в %s", f.Name(), gzPath)
-					_ = os.Remove(logPath) // Удаляем оригинал после сжатия
+					if Log != nil {
+						Log.Infof("Старый лог %s успешно сжат в %s", f.Name(), gzPath)
+					}
+					_ = os.Remove(logPath) // Удаляем оригинал после успешного сжатия
 				}
 			}
 		}
 	}
 }
 
-func compressFile(src, dst string) error {
+// compressFileGZ сжимает файл используя стандартную библиотеку compress/gzip (п.7.2 ТЗ).
+func compressFileGZ(src, dst string) error {
 	inFile, err := os.Open(src)
 	if err != nil {
 		return err
@@ -64,26 +71,11 @@ func compressFile(src, dst string) error {
 	}
 	defer outFile.Close()
 
+	// Используем только gzip, так как ТЗ требует "архив формата gz"
+	// (TAR здесь избыточен для одиночного файла)
 	gw := gzip.NewWriter(outFile)
 	defer gw.Close()
 
-	tw := tar.NewWriter(gw)
-	defer tw.Close()
-
-	info, err := inFile.Stat()
-	if err != nil {
-		return err
-	}
-
-	header, err := tar.FileInfoHeader(info, info.Name())
-	if err != nil {
-		return err
-	}
-
-	if err := tw.WriteHeader(header); err != nil {
-		return err
-	}
-
-	_, err = io.Copy(tw, inFile)
+	_, err = io.Copy(gw, inFile)
 	return err
 }

@@ -1,0 +1,75 @@
+package sql
+
+import (
+	"context"
+	_ "embed"
+	"fmt"
+	"strings"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"venera/logging"
+	"venera/models"
+)
+
+// Внедряем чистый SQL-скрипт в бинарник приложения (п.20 ТЗ)
+//
+//go:embed create_pg_db.sql
+var SchemaSQL string
+
+// InitializeDatabase выполняет команду инициализации базы данных (--create_pg_db / п.15.5 ТЗ).
+func InitializeDatabase(cfg *models.PostgreSQLConfig) error {
+	ctx := context.Background()
+
+	// 1. Подключаемся к системной БД postgres, чтобы проверить существование целевой базы
+	sysConnString := fmt.Sprintf("postgres://%s:%s@%s:%d/postgres?sslmode=%s",
+		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.SSLMode)
+
+	sysPool, err := pgxpool.New(ctx, sysConnString)
+	if err != nil {
+		return fmt.Errorf("ошибка подключения к системной БД postgres: %v", err)
+	}
+	defer sysPool.Close()
+
+	// Проверяем наличие целевой базы данных "Venera"
+	var exists bool
+	queryCheck := `SELECT EXISTS(SELECT datname FROM pg_catalog.pg_database WHERE datname = $1);`
+	err = sysPool.QueryRow(ctx, queryCheck, cfg.Database).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("ошибка проверки существования базы: %v", err)
+	}
+
+	if !exists {
+		logging.Log.Infof("База данных '%s' не найдена. Начинаем создание...", cfg.Database)
+		// Команду CREATE DATABASE нельзя выполнить как параметризованный запрос,
+		// поэтому мы подставляем имя БД напрямую, предварительно проверив на безопасность (оно из конфига).
+		// Экранируем двойными кавычками на случай спецсимволов.
+		createDbQuery := fmt.Sprintf(`CREATE DATABASE "%s";`, strings.ReplaceAll(cfg.Database, `"`, `""`))
+
+		_, err = sysPool.Exec(ctx, createDbQuery)
+		if err != nil {
+			return fmt.Errorf("ошибка создания базы данных: %v", err)
+		}
+		logging.Log.Infof("База данных '%s' успешно создана.", cfg.Database)
+	} else {
+		logging.Log.Infof("База данных '%s' уже существует. Применение схемы...", cfg.Database)
+	}
+
+	// 2. Закрываем подключение к системной БД и подключаемся к созданной (или существующей) БД
+	targetConnString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Database, cfg.SSLMode)
+
+	targetPool, err := pgxpool.New(ctx, targetConnString)
+	if err != nil {
+		return fmt.Errorf("ошибка подключения к целевой базе '%s': %v", cfg.Database, err)
+	}
+	defer targetPool.Close()
+
+	// Выполняем SQL скрипт создания таблиц (шаблон из п.20 ТЗ)
+	_, err = targetPool.Exec(ctx, SchemaSQL)
+	if err != nil {
+		return fmt.Errorf("ошибка применения шаблона SQL-скрипта (п.20 ТЗ): %v", err)
+	}
+
+	logging.Log.Infof("Таблицы и индексы базы данных '%s' успешно инициализированы.", cfg.Database)
+	return nil
+}
