@@ -6,12 +6,12 @@
   log_rotation_days = 7
 
 [Paths]
-  podman_exe = "podman"
-  tshark_exe = "tshark"
+  podman_exe = "c:\Program Files\RedHat\Podman\podman.exe"
+  tshark_exe = "c:\Program Files\Wireshark\tshark.exe"
   filter_list = "settings/generic.flt"
   control_list = "settings/generic.ctr"
   alerts_list = "settings/generic.alr"
-  db_image = "docker.io/dragonflydb/dragonfly"
+  db_image = "dragonflydb.tar.gz"
   db_backup_dir = "backups"
 
 [DragonflyDB]
@@ -25,7 +25,7 @@
   host = "127.0.0.1"
   port = 5432
   user = "postgres"
-  password = "password"
+  password = "postgres"
   database = "Venera"
   ssl_mode = "disable"
 
