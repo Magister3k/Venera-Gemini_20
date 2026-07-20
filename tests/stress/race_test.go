@@ -17,9 +17,9 @@ func init() {
 }
 
 // TestConcurrentFilterAccess проверяет отсутствие Race Condition при одновременном
-// чтении (IsAllowed) и записи (LoadFilters/Update) в мапу фильтрации (п.28 ТЗ).
+// чтении (IsAllowed) и записи (LoadFilters/Update) в мапу фильтрации.
 func TestConcurrentFilterAccess(t *testing.T) {
-	t.Log("Запуск стресс-теста: одновременный доступ к фильтрам (Race Condition Check) - п.28 ТЗ")
+	t.Log("Запуск стресс-теста: одновременный доступ к фильтрам (Race Condition Check)")
 
 	var wg sync.WaitGroup
 
@@ -33,7 +33,7 @@ func TestConcurrentFilterAccess(t *testing.T) {
 		}
 	}()
 
-	// Горутины 2-11: Симулируют 10 рабочих процессов (ПО1..ПО10),
+	// Горутины 2-11: Симулируют 10 рабочих процессов,
 	// которые непрерывно читают фильтры для валидации данных Tshark.
 	for w := 0; w < 10; w++ {
 		wg.Add(1)

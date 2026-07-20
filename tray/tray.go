@@ -11,7 +11,7 @@ import (
 	"venera/assets"
 	"venera/config"
 	"venera/logging"
-	"venera/services"
+	"venera/utils"
 )
 
 var (
@@ -33,24 +33,24 @@ func onReady() {
 	systray.SetTitle("Venera")
 	systray.SetTooltip("Venera Collector")
 
-	// Установка иконки из модуля assets (п.21 ТЗ)
+	// Установка иконки из модуля assets
 	if len(assets.IconBytes) > 0 {
 		systray.SetIcon(assets.IconBytes)
 	} else {
 		logging.Log.Warn("Иконка трея не загружена (assets.IconBytes пуст)")
 	}
 
-	// Проверка прав администратора (п.16.1, 16.3 ТЗ)
-	if !services.IsAdmin() {
-		// ТЗ требует использовать systray для уведомления:
-		// Добавляем неактивный пункт меню как всплывающее сообщение-предупреждение
+	// Проверка прав администратора
+	if !utils.IsAdmin() {
+		// Чтобы использовать systray для уведомления:
+		// добавляем неактивный пункт меню как всплывающее сообщение-предупреждение
 		mAlert := systray.AddMenuItem("⚠️ ОШИБКА ДОСТУПА", "Отсутствуют права администратора")
 		mAlert.Disable()
 		mAlertMsg := systray.AddMenuItem("Перезапустите приложение с правами администратора", "")
 		mAlertMsg.Disable()
 		systray.AddSeparator()
 
-		logging.Log.Warn("Приложение запущено без прав администратора (п.16 ТЗ)")
+		logging.Log.Warn("Приложение запущено без прав Администратора")
 	}
 
 	// Меню управления
@@ -66,7 +66,7 @@ func onReady() {
 		for {
 			select {
 			case <-mOpenWeb.ClickedCh:
-				// п.10.1 ТЗ: Открытие веб-интерфейса по клику.
+				// Открытие веб-интерфейса по клику.
 				// Библиотека systray не поддерживает нативный OnClick для самой иконки в Windows,
 				// поэтому используется явный пункт меню (лучшая практика для systray).
 				openWebInterface()
@@ -89,7 +89,7 @@ func onExit() {
 	onStop()
 }
 
-// openWebInterface открывает браузер по умолчанию на адресе веб-сервера (п.10.1 ТЗ).
+// openWebInterface открывает браузер по умолчанию на адресе веб-сервера.
 func openWebInterface() {
 	port := config.GlobalConfig.Generic.WebServerPort
 	if port == 0 {
@@ -117,7 +117,7 @@ func openWebInterface() {
 	}
 }
 
-// ShowErrorNotification добавляет пункт меню с ошибкой для имитации уведомлений в трее (п.8.2 ТЗ)
+// ShowErrorNotification добавляет пункт меню с ошибкой для имитации уведомлений в трее
 // (Так как getlantern/systray не имеет встроенного метода ShowNotification).
 func ShowErrorNotification(message string) {
 	// Взаимодействие с GUI должно выполняться в основном потоке,

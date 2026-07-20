@@ -23,6 +23,7 @@ import (
 	"venera/sql"
 	"venera/tray"
 	"venera/web"
+	"venera/utils"
 )
 
 var (
@@ -106,7 +107,7 @@ func main() {
 	)
 
 	// Проверка прав администратора при запуске приложения
-	if !services.IsAdmin() {
+	if !utils.IsAdmin() {
 		// Ограничиваемся только логом, так как вывод в GUI реализован внутри tray.RunTray
 		logging.Log.Warn("Внимание: приложение запущено без прав Администратора.")
 	}

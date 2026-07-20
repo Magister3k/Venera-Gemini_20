@@ -48,7 +48,7 @@ func TestCallbacks(t *testing.T) {
 		t.Fatal("Таймаут ожидания коллбека")
 	}
 
-	// Тест паники (п.18.4 ТЗ)
+	// Тест паники
 	manager.Subscribe("panic_event", func(data interface{}) {
 		panic("Искусственная паника для теста")
 	})

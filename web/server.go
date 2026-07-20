@@ -13,7 +13,7 @@ import (
 
 var app *fiber.App
 
-// StartWebServer запускает веб-сервер на базе фреймворка fiber (п.10.2 ТЗ).
+// StartWebServer запускает веб-сервер на базе фреймворка Fiber.
 func StartWebServer() {
 	cfg := config.GetConfig()
 	port := cfg.Generic.WebServerPort
@@ -34,12 +34,12 @@ func StartWebServer() {
 
 	// Установка API маршрутов
 	SetupRoutes(app)
-	// Установка WebSocket маршрутов (п.19.1 ТЗ)
+	// Установка WebSocket маршрутов
 	SetupWebSockets(app)
 
-	// Раздача статических файлов SPA React (п.10.2 ТЗ)
+	// Раздача статических файлов SPA React
 	// SPA с поддержкой хэш-роутинга: отдаем index.html для всех неизвестных путей,
-	// но fiber Static сам обслуживает index.html.
+	// но Fiber Static сам обслуживает index.html.
 	app.Static("/", "./react-ui/dst", fiber.Static{
 		Compress:  true,
 		ByteRange: true,

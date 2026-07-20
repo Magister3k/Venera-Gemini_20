@@ -24,7 +24,7 @@ func SetupRoutes(app *fiber.App) {
 	api.Get("/config", apiGetConfig)
 	api.Post("/config", apiUpdateConfig)
 
-	// API для получения данных из PostgreSQL (резервный REST интерфейс для п.10.6,
+	// API для получения данных из итоговой БД (резервный REST интерфейс:
 	// хотя ТЗ также требует WebSocket для этого, но REST удобнее для экспорта xlsx)
 	api.Get("/db/export", apiExportDB)
 }
@@ -102,7 +102,7 @@ func apiGetConfig(c *fiber.Ctx) error {
 	return c.JSON(config.GetConfig())
 }
 
-// apiUpdateConfig сохраняет новую конфигурацию (п.10.7 ТЗ)
+// apiUpdateConfig сохраняет новую конфигурацию
 func apiUpdateConfig(c *fiber.Ctx) error {
 	var cfg models.Config
 	if err := c.BodyParser(&cfg); err != nil {
@@ -117,7 +117,7 @@ func apiUpdateConfig(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
-// apiExportDB выгрузка данных из БД (п.10.6 ТЗ). В идеале генерирует xlsx,
+// apiExportDB выгрузка данных из БД. В идеале генерирует xlsx,
 // здесь мы возвращаем JSON-дамп для простоты интерфейса, фронтенд может сгенерировать excel.
 func apiExportDB(c *fiber.Ctx) error {
 	if data.PgPool == nil {
