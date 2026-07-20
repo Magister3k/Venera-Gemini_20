@@ -31,7 +31,7 @@ var (
 )
 
 func main() {
-	// Инициализация флагов (п.15 ТЗ)
+	// Инициализация флагов
 	var (
 		showHelp      bool
 		showVersion   bool
@@ -43,37 +43,37 @@ func main() {
 		uninstallSrv  bool
 	)
 
-	// п.15.1
+	// Отображение справки
 	flag.BoolVar(&showHelp, "help", false, "Отображение списка параметров командной строки")
 	flag.BoolVar(&showHelp, "h", false, "Отображение списка параметров командной строки")
 
-	// п.15.2
+	// Отображение версии программы
 	flag.BoolVar(&showVersion, "version", false, "Отображение версии программы")
 	flag.BoolVar(&showVersion, "v", false, "Отображение версии программы")
 
-	// п.15.2 (по тексту ТЗ) / п.9
+	// Запуск диагностики
 	flag.BoolVar(&runDiagnose, "diagnose", false, "Запуск диагностики")
 	flag.BoolVar(&runDiagnose, "d", false, "Запуск диагностики")
 
-	// п.15.3
-	flag.BoolVar(&createCacheDB, "create_cachedb", false, "Создание контейнера СУБД DragonflyDB")
-	flag.BoolVar(&createCacheDB, "c", false, "Создание контейнера СУБД DragonflyDB")
+	// Создание контейнера кэшируюшей СУБД
+	flag.BoolVar(&createCacheDB, "create_cachedb", false, "Создание контейнера кэшируюшей СУБД")
+	flag.BoolVar(&createCacheDB, "c", false, "Создание контейнера кэшируюшей СУБД")
 
-	// п.15.4
-	flag.BoolVar(&removeCacheDB, "remove_cachedb", false, "Удаление контейнера СУБД DragonflyDB")
-	flag.BoolVar(&removeCacheDB, "r", false, "Удаление контейнера СУБД DragonflyDB")
+	// Удаление контейнера кэшируюшей СУБД
+	flag.BoolVar(&removeCacheDB, "remove_cachedb", false, "Удаление контейнера кэшируюшей СУБД")
+	flag.BoolVar(&removeCacheDB, "r", false, "Удаление контейнера кэшируюшей СУБД")
 
-	// п.15.5
+	// Создание базы в СУБД PostgreSQL
 	flag.BoolVar(&createPgDB, "create_pg_db", false, "Создание базы в СУБД PostgreSQL")
 	flag.BoolVar(&createPgDB, "p", false, "Создание базы в СУБД PostgreSQL")
 
-	// п.15.6
-	flag.BoolVar(&installSrv, "install_srv", false, "Установка службы проекта")
-	flag.BoolVar(&installSrv, "i", false, "Установка службы проекта")
+	// Установка службы Windows
+	flag.BoolVar(&installSrv, "install_srv", false, "Установка службы Windows")
+	flag.BoolVar(&installSrv, "i", false, "Установка службы Windows")
 
-	// п.15.7
-	flag.BoolVar(&uninstallSrv, "uninstall_srv", false, "Удаление службы проекта")
-	flag.BoolVar(&uninstallSrv, "u", false, "Удаление службы проекта")
+	// Удаление службы Windows
+	flag.BoolVar(&uninstallSrv, "uninstall_srv", false, "Удаление службы Windows")
+	flag.BoolVar(&uninstallSrv, "u", false, "Удаление службы Windows")
 
 	flag.Parse()
 
@@ -87,13 +87,13 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Загрузка конфигурации (п.2.2 ТЗ)
+	// Загрузка конфигурации
 	if err := config.LoadConfig(); err != nil {
 		fmt.Printf("Ошибка загрузки конфигурации: %v\n", err)
 	}
 	cfg := config.GetConfig()
 
-	// Инициализация логгера (п.7 ТЗ)
+	// Инициализация логгера
 	if err := logging.InitLogger(); err != nil {
 		fmt.Printf("Критическая ошибка инициализации логгера: %v\n", err)
 		os.Exit(1)
@@ -105,61 +105,61 @@ func main() {
 		installSrv, uninstallSrv, cfg,
 	)
 
-	// ТЗ п.16.1: Проверка прав администратора при запуске приложения
+	// Проверка прав администратора при запуске приложения
 	if !services.IsAdmin() {
-		// Ограничиваемся только логом, так как вывод в GUI реализован внутри tray.RunTray (п.16.3 ТЗ)
+		// Ограничиваемся только логом, так как вывод в GUI реализован внутри tray.RunTray
 		logging.Log.Warn("Внимание: приложение запущено без прав Администратора.")
 	}
 
-	// Проверка наличия и запуск Podman (п.2.7, 2.8, 2.10, 2.11 ТЗ)
+	// Проверка наличия и запуск Podman
 	// В рамках основной логики запускаем кэш БД
 	setupDragonflyContainer(cfg.Paths)
 
-	// Загрузка списков (п.2.4, 2.5, 2.6 ТЗ)
+	// Загрузка списков
 	_ = data.LoadFilters(cfg.Paths.FilterList)
 	_ = data.LoadControlList(cfg.Paths.ControlList)
 	_ = notify.LoadAlerts(cfg.Paths.AlertsList)
 
-	// Загрузка процессов (п.2.17 ТЗ)
+	// Загрузка процессов
 	if err := processes.LoadProcesses(); err != nil {
 		logging.Log.Warnf("Ошибка загрузки списка процессов: %v", err)
 	}
 
-	// Регистрация и проверка манифеста (п.8 ТЗ)
+	// Регистрация и проверка манифеста
 	if err := manifest.Init(); err != nil {
 		logging.Log.Errorf("Ошибка инициализации манифеста ETW: %v", err)
 	}
 
-	// Выбор режима запуска (п.2.15 ТЗ)
+	// Выбор режима запуска
 	if cfg.Generic.Mode == "service" {
 		err := services.RunService(startApplication, stopApplication)
 		if err != nil {
 			logging.Log.Fatalf("Ошибка запуска службы: %v", err)
 		}
 	} else {
-		// Запуск в виде приложения системного трея (п.1.1 ТЗ)
+		// Запуск в виде приложения системного трея
 		tray.RunTray(startApplication, stopApplication)
 	}
 }
 
 func startApplication() {
-	// Подключение к БД (п.2.16 ТЗ)
+	// Подключение к кэширующей СУБД
 	if err := data.InitDragonflyDB(); err != nil {
-		logging.Log.Errorf("Ошибка подключения к БД DragonflyDB (п.2.12 ТЗ): %v", err)
-		tray.ShowErrorNotification("Нет связи с DragonflyDB")
+		logging.Log.Errorf("Ошибка подключения к кэширующей СУБД: %v", err)
+		tray.ShowErrorNotification("Нет связи с кэширующей СУБД")
 	}
 
 	if err := data.InitPostgreSQL(); err != nil {
-		logging.Log.Errorf("Ошибка подключения к БД PostgreSQL (п.2.13 ТЗ): %v", err)
-		tray.ShowErrorNotification("Нет связи с PostgreSQL")
+		logging.Log.Errorf("Ошибка подключения к СУБД PostgreSQL: %v", err)
+		tray.ShowErrorNotification("Нет связи с СУБД PostgreSQL")
 	}
 
-	// Запуск фонового мониторинга и защиты (п.17 ТЗ)
+	// Запуск фонового мониторинга и защиты
 	monitorCtx, monitorCancel := context.WithCancel(context.Background())
 	metrics.SetStopAllCallback(stopAllProcesses)
 	go metrics.StartMonitor(monitorCtx)
 
-	// Запуск процессов, если включен автостарт (п.1.11 ТЗ)
+	// Запуск процессов, если включен автостарт
 	cfg := config.GetConfig()
 	if cfg.Generic.AutoStart {
 		for _, p := range processes.GetAllProcesses() {
@@ -169,10 +169,10 @@ func startApplication() {
 		}
 	}
 
-	// Старт веб-интерфейса (п.10 ТЗ)
+	// Старт веб-интерфейса
 	go web.StartWebServer()
 
-	// Graceful shutdown по сигналам OS (п.18.5 ТЗ)
+	// Graceful shutdown по сигналам Windows
 	go func() {
 		sigs := make(chan os.Signal, 1)
 		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -200,7 +200,7 @@ func stopApplication() {
 	logging.Log.Infof("Venera успешно остановлена.")
 }
 
-// handleCLICommands обрабатывает эксклюзивные CLI команды (п.15 ТЗ)
+// handleCLICommands обрабатывает эксклюзивные CLI команды
 func handleCLICommands(
 	runDiagnose, createCacheDB, removeCacheDB, createPgDB,
 	installSrv, uninstallSrv bool, cfg models.Config) {
@@ -227,21 +227,21 @@ func handleCLICommands(
 
 	if createCacheDB {
 		setupDragonflyContainer(cfg.Paths)
-		fmt.Println("Контейнер СУБД DragonflyDB успешно проверен/создан.")
+		fmt.Println("Контейнер кэширующей СУБД успешно проверен/создан.")
 		os.Exit(0)
 	}
 
 	if removeCacheDB {
-		fmt.Println("Удаление контейнера СУБД DragonflyDB...")
+		fmt.Println("Удаление контейнера кэширующей СУБД...")
 		_ = exec.Command(cfg.Paths.PodmanExe, "rm", "-f", "cachedb").Run()
 		os.Exit(0)
 	}
 
 	if createPgDB {
-		fmt.Println("Инициализация базы данных PostgreSQL... (п.15.5 ТЗ)")
+		fmt.Println("Инициализация базы в СУБД PostgreSQL...")
 		err := sql.InitializeDatabase(&cfg.PostgreSQL)
 		if err != nil {
-			fmt.Printf("Ошибка создания базы PostgreSQL: %v\n", err)
+			fmt.Printf("Ошибка создания базы в СУБД PostgreSQL: %v\n", err)
 			os.Exit(1)
 		}
 		fmt.Println("База данных успешно инициализирована.")
@@ -265,7 +265,7 @@ func handleCLICommands(
 	}
 }
 
-// setupDragonflyContainer проверяет и поднимает контейнер (п.2.7-2.11 ТЗ)
+// setupDragonflyContainer проверяет и поднимает контейнер с еэширующей СУБД
 func setupDragonflyContainer(paths models.PathsConfig) {
 	podman := paths.PodmanExe
 
@@ -288,7 +288,7 @@ func setupDragonflyContainer(paths models.PathsConfig) {
 			tray.ShowErrorNotification("Ошибка создания БД DragonflyDB")
 		}
 	} else {
-		// Запуск контейнера (п.2.11)
+		// Запуск контейнера
 		_ = exec.Command(podman, "start", "cachedb").Run()
 	}
 }
@@ -297,6 +297,6 @@ func printHelp() {
 	fmt.Println("Venera — Система сбора идентификаторов в потоке пакетных данных")
 	fmt.Println("\nИспользование:")
 	fmt.Println("  venera.exe [опция]")
-	fmt.Println("\nОпции (п.15 ТЗ):")
+	fmt.Println("\nОпции:")
 	flag.PrintDefaults()
 }

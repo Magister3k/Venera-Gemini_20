@@ -6,32 +6,32 @@ import (
 	"venera/data"
 )
 
-// GetDatabaseSizes собирает размеры баз данных средствами самих СУБД (п.6.1 ТЗ).
+// GetDatabaseSizes собирает размеры баз данных средствами самих СУБД.
 func GetDatabaseSizes() (uint64, uint64, error) {
-	var dragonflySize uint64
-	var postgresSize uint64
+	var cachedbSize uint64
+	var pgdbSize uint64
 
-	// 1. Размер DragonflyDB
+	// Размер кэширующей СУБД
 	if data.DragonflyClient != nil {
 		// Для Redis/DragonflyDB используем команду MEMORY USAGE или INFO memory.
 		// В DragonflyDB команда INFO memory выдает used_memory в байтах.
 		infoStr, err := data.DragonflyClient.Info(context.Background(), "memory").Result()
 		if err == nil {
-			dragonflySize = parseInfoMemory(infoStr, "used_memory:")
+			cachedbSize = parseInfoMemory(infoStr, "used_memory:")
 		}
 	}
 
-	// 2. Размер PostgreSQL (база данных Venera)
-	if data.PgPool != nil {
+	// Размер базы в СУБД PostgreSQL
+	if data.PgPool != nil {		
 		// Используем встроенную функцию pg_database_size
 		query := `SELECT pg_database_size(current_database());`
-		err := data.PgPool.QueryRow(context.Background(), query).Scan(&postgresSize)
-		if err != nil {
+		err := data.PgPool.QueryRow(context.Background(), query).Scan(&pgdbSize)
+		//if err != nil {
 			// Если запрос упал, просто вернем 0 или можно залогировать (логирование в collector.go)
-		}
+		//}
 	}
 
-	return dragonflySize, postgresSize, nil
+	return cachedbSize, pgdbSize, err
 }
 
 // parseInfoMemory парсит вывод INFO memory Redis/Dragonfly

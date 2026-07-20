@@ -15,18 +15,15 @@ import (
 )
 
 var (
-	// alertRules хранит скомпилированные правила алертов.
-	alertRules []compiledRule
+	alertRules []compiledRule	// скомпилированные правила алертов
 	alertsMu   sync.RWMutex
-
-	// celEnv - окружение CEL для компиляции выражений.
-	celEnv *cel.Env
+	celEnv     *cel.Env		// окружение CEL для компиляции выражений
 )
 
-// compiledRule - внутренняя структура, хранящая скомпилированную CEL-программу
+// compiledRule - исходное и скомпилированное правило алерта в формате CEL
 type compiledRule struct {
-	Rule    models.AlertRule
-	Program cel.Program
+	Rule    models.AlertRule	// исходное правило
+	Program cel.Program		// скомпилированное правило
 }
 
 func init() {
@@ -45,8 +42,8 @@ func init() {
 	}
 }
 
-// LoadAlerts загружает правила алертов из файла generic.alr формата cel (п.1.10, п.2.4 ТЗ)
-// Ожидаемый формат файла (строчный, разделитель |):
+// LoadAlerts загружает правила алертов в формате CEL из файла CSV (generic.alr)
+// Ожидаемый формат файла (строчный, разделитель "|"):
 // Message | Severity | CEL_Expression
 // Пример: Обнаружен админ | warning | value == 'admin' && key == 'user'
 func LoadAlerts(filePath string) error {
@@ -59,7 +56,7 @@ func LoadAlerts(filePath string) error {
 	if err != nil {
 		if os.IsNotExist(err) {
 			alertRules = newRules
-			logging.Log.Warnf("Файл алертов %s не найден. Алерты отключены (п.2.4 ТЗ).", filePath)
+			logging.Log.Warnf("Файл алертов %s не найден. Алерты отключены", filePath)
 			return nil
 		}
 		return fmt.Errorf("ошибка открытия файла алертов: %v", err)
@@ -119,11 +116,11 @@ func LoadAlerts(filePath string) error {
 	}
 
 	alertRules = newRules
-	logging.Log.Infof("Загружены правила алертов (п.2.4 ТЗ): %d правил из %s", len(alertRules), filePath)
+	logging.Log.Infof("Загружены правила алертов: %d правил из %s", len(alertRules), filePath)
 	return nil
 }
 
-// CheckAlerts проверяет конкретную пару данных (п.7.5 ТЗ) на соответствие загруженным CEL правилам
+// CheckAlerts проверяет конкретную пару данных на соответствие загруженным CEL правилам
 func CheckAlerts(source, key, value string) {
 	alertsMu.RLock()
 	defer alertsMu.RUnlock()
@@ -157,7 +154,7 @@ func CheckAlerts(source, key, value string) {
 				Message:   cr.Rule.Message,
 			}
 
-			// Отправка алерта (п.7.5 ТЗ)
+			// Отправка алерта
 			ProcessAlert(event, cr.Rule.Severity)
 		}
 	}

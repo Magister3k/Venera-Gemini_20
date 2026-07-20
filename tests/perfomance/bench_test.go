@@ -1,4 +1,4 @@
-package perfomance_test
+package tests
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 
 // BenchmarkParseEntry проверяет скорость и эффективность выделения ключа, значения и времени
 // из строки NDJSON.
-// Цель (п.23 ТЗ): Нагрузочное (perfomance) тестирование базовых парсеров,
+// Цель: Нагрузочное тестирование базовых парсеров,
 // так как Venera должна обрабатывать большие pcap файлы без просадок.
 func BenchmarkParseEntry(b *testing.B) {
 	entry := "10.0.0.1.src_port:5432:1625091234000"
@@ -23,8 +23,8 @@ func BenchmarkParseEntry(b *testing.B) {
 }
 
 // BenchmarkIsAllowed проверяет скорость работы фильтрации через RWMutex.
-// Цель (п.23 ТЗ): Убедиться, что вызов data.IsAllowed() на каждую пару
-// не становится бутылочным горлышком (bottleneck) при больших потоках.
+// Цель: Убедиться, что вызов data.IsAllowed() на каждую пару
+// не становится бутылочным горлышком при больших потоках.
 func BenchmarkIsAllowed(b *testing.B) {
 	// Подготовка пустых фильтров
 	_ = data.LoadFilters("non_existent_perf.flt")

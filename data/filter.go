@@ -16,10 +16,10 @@ var (
 	// Второй уровень: список значений (черный список "-").
 	// Для быстрого поиска значений используется map[string]struct{}.
 	filterMap map[string]map[string]struct{}
-	filterMu  sync.RWMutex // Защита от состояния гонки (Race Condition), выявленного в п.27
+	filterMu  sync.RWMutex // Защита от состояния гонки (Race Condition)
 )
 
-// LoadFilters читает файл generic.flt и заполняет двухуровневую структуру map (п.2.5 ТЗ).
+// LoadFilters читает файл generic.flt и заполняет двухуровневую структуру map.
 func LoadFilters(filePath string) error {
 	filterMu.Lock()
 	defer filterMu.Unlock()
@@ -30,7 +30,8 @@ func LoadFilters(filePath string) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// ТЗ п.2.5: "Проверка наличия файла... в случае наличия - загрузка".
+			// Проверка наличия файла.
+			// Загрузка в случае наличия.
 			// Отсутствие файла не является фатальной ошибкой, просто список будет пуст.
 			filterMap = newFilterMap
 			logging.Log.Warnf("Файл фильтров %s не найден. Фильтрация отключена.", filePath)
@@ -43,9 +44,8 @@ func LoadFilters(filePath string) error {
 	scanner := bufio.NewScanner(file)
 	var currentKey string
 
-	// ТЗ п.1.7:
-	// "+" _ключ_|_название_
-	// "-" _значение_
+	// +_ключ_|_название_
+	// -_значение_
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
@@ -79,7 +79,7 @@ func LoadFilters(filePath string) error {
 	return nil
 }
 
-// IsAllowed проверяет ключ и значение на соответствие правилам фильтрации (п.5.5.3 ТЗ).
+// IsAllowed проверяет ключ и значение на соответствие правилам фильтрации.
 // Возвращает true, если пара должна быть обработана, и false, если она отбрасывается.
 func IsAllowed(key, value string) bool {
 	filterMu.RLock()

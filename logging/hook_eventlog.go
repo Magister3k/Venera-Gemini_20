@@ -8,7 +8,7 @@ import (
 )
 
 // EventLogHook реализует интерфейс logrus.Hook для отправки
-// критических ошибок в Windows Event Log (п.7.4 ТЗ).
+// критических ошибок в Windows Event Log.
 type EventLogHook struct {
 	sourceName string
 	eventLog   *eventlog.Log
@@ -30,8 +30,9 @@ func NewEventLogHook(sourceName string) (*EventLogHook, error) {
 	}, nil
 }
 
-// Levels возвращает уровни логирования, на которые будет реагировать хук.
-// ТЗ п.7.4: "Отправка критических ошибок". Мы выбираем уровни Error, Fatal и Panic.
+// Levels возвращает уровни логирования, на которые будет
+// реагировать хук "Отправка критических ошибок".
+// Выбираем уровни Error, Fatal и Panic.
 func (hook *EventLogHook) Levels() []logrus.Level {
 	return []logrus.Level{
 		logrus.ErrorLevel,

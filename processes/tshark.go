@@ -16,7 +16,7 @@ import (
 	"venera/models"
 )
 
-// RunTsharkNetwork запускает Tshark для захвата с сетевого интерфейса (п.5.1 ТЗ)
+// RunTsharkNetwork запускает Tshark для захвата с сетевого интерфейса
 func RunTsharkNetwork(ctx context.Context, ip string, port int, sourceID string, trigger func()) error {
 	exe := config.GlobalConfig.Paths.TsharkExe
 	filter := fmt.Sprintf("host %s and udp port %d", ip, port)
@@ -26,7 +26,7 @@ func RunTsharkNetwork(ctx context.Context, ip string, port int, sourceID string,
 	return runTsharkCommand(ctx, exe, args, sourceID, trigger)
 }
 
-// RunTsharkFileOrFolder запускает обработку отдельного файла или папки с файлами (п.5.1, 13 ТЗ)
+// RunTsharkFileOrFolder запускает обработку отдельного файла или папки с файлами
 func RunTsharkFileOrFolder(ctx context.Context, p models.ProcessConfig, trigger func()) error {
 	exe := config.GlobalConfig.Paths.TsharkExe
 
@@ -37,14 +37,14 @@ func RunTsharkFileOrFolder(ctx context.Context, p models.ProcessConfig, trigger 
 	}
 
 	if p.Type == models.SourceFolder && p.FolderPath != "" {
-		// Обработка файлов в папке (п.13 ТЗ)
+		// Обработка файлов в папке
 		return processFolder(ctx, exe, p, trigger)
 	}
 
 	return fmt.Errorf("не указан путь к файлу или папке для источника: %s", p.ID)
 }
 
-// processFolder обрабатывает папку с pcap файлами с учетом параметров подпапок и мониторинга (п.13 ТЗ)
+// processFolder обрабатывает папку с pcap файлами с учетом параметров подпапок и мониторинга
 func processFolder(ctx context.Context, exe string, p models.ProcessConfig, trigger func()) error {
 	processedFiles := make(map[string]bool)
 
@@ -116,7 +116,7 @@ func processFolder(ctx context.Context, exe string, p models.ProcessConfig, trig
 func runTsharkCommand(ctx context.Context, exe string, args []string, sourceID string, trigger func()) error {
 	cmd := exec.CommandContext(ctx, exe, args...)
 
-	// Настройка для Windows: Job Objects или группы процессов (п.28 ТЗ, защита от зомби-процессов Tshark)
+	// Настройка для Windows: Job Objects или группы процессов (защита от зомби-процессов Tshark)
 	cmd.SysProcAttr = &windows.SysProcAttr{
 		CreationFlags: windows.CREATE_NEW_PROCESS_GROUP,
 	}
@@ -170,14 +170,14 @@ func runTsharkCommand(ctx context.Context, exe string, args []string, sourceID s
 			continue
 		}
 
-		// Пачки в DragonflyDB (п.5.4 ТЗ)
+		// Пачки в кэширующей СУБД
 		err = data.PushBatchToList(sourceID, pairs)
 		if err != nil {
-			logging.Log.Errorf("Ошибка добавления батча в DragonflyDB: %v", err)
+			logging.Log.Errorf("Ошибка добавления пачки в кэширующую СУБД: %v", err)
 		} else {
 			recordsAdded += int64(len(pairs))
 			if recordsAdded >= batchSize {
-				trigger() // Вызов канала ПЗ (п.4.1 ТЗ)
+				trigger() // Вызов канала порогового значения
 				recordsAdded = 0
 			}
 		}
@@ -188,7 +188,7 @@ func runTsharkCommand(ctx context.Context, exe string, args []string, sourceID s
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		logging.Log.Errorf("Tshark stdout error: %v", err)
+		logging.Log.Errorf("Ошибка вывода Tshark: %v", err)
 	}
 
 	// Ожидаем завершения чтения stderr, предотвращая panic/race condition

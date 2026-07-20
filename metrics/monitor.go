@@ -18,7 +18,7 @@ func SetStopAllCallback(fn func()) {
 	stopAllProcesses = fn
 }
 
-// StartMonitor запускает фоновый процесс мониторинга системных порогов (п.17 ТЗ)
+// StartMonitor запускает фоновый процесс мониторинга системных порогов
 func StartMonitor(ctx context.Context) {
 	ticker := time.NewTicker(10 * time.Second) // Проверка каждые 10 секунд
 	defer ticker.Stop()
@@ -30,7 +30,8 @@ func StartMonitor(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			// п.17.2: Остановка всех процессов с выводом сообщения при достижении критических порогов
+			// Остановка всех процессов с выводом сообщения при достижении критических порогов
+			// свободного места на диске с базой СУБД PostgreSQL и объема ОЗУ на ПК с программой
 			critical, msg := ProtectSystem()
 			if critical {
 				logging.Log.Error(msg)
@@ -43,10 +44,11 @@ func StartMonitor(ctx context.Context) {
 				continue
 			}
 
-			// п.17.1: Вывод сообщения пользователю при достижении N процентов свободного пространства
+			// Вывод сообщения пользователю при достижении опасного порога свободного места на диске
+			// с базой СУБД PostgreSQL
 			if CheckDiskWarning() {
 				if !warningSent {
-					msg := "Внимание: мало свободного пространства на диске базы данных PostgreSQL!"
+					msg := "Внимание: мало свободного места на диске с базой СУБД PostgreSQL!"
 					logging.Log.Warn(msg)
 					tray.ShowErrorNotification(msg)
 					warningSent = true // Чтобы не спамить

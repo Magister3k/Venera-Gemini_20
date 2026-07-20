@@ -1,4 +1,4 @@
-package e2e_test
+package tests
 
 import (
 	"context"
@@ -20,21 +20,21 @@ func init() {
 }
 
 // TestE2EWebServer проверяет запуск и остановку веб-сервера (SPA Fiber)
-// Цель (п.23 ТЗ): E2E проверка доступности главного интерфейса управления системой.
+// Цель: E2E проверка доступности главного интерфейса управления системой.
 func TestE2EWebServer(t *testing.T) {
-	t.Log("Запуск E2E теста веб-сервера (п.23 ТЗ)")
+	t.Log("Запуск E2E теста веб-сервера")
 
-	// 1. Подготовка конфигурации
+	// Подготовка конфигурации
 	config.GlobalConfig = config.DefaultConfig()
-	config.GlobalConfig.Generic.WebServerPort = 8085 // Используем нестандартный порт для теста
+	config.GlobalConfig.Generic.WebServerPort = 8085 // Используем нестандартный порт
 
-	// 2. Запуск сервера
+	// Запуск сервера
 	go web.StartWebServer()
 
-	// 3. Ждем поднятия сервера
+	// Ждем поднятия сервера
 	time.Sleep(200 * time.Millisecond)
 
-	// 4. E2E запрос: Проверка доступности API процессов
+	// E2E запрос: Проверка доступности API процессов
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
@@ -55,7 +55,7 @@ func TestE2EWebServer(t *testing.T) {
 		t.Errorf("Ожидался статус 200 OK, получено: %v", resp.Status)
 	}
 
-	// 5. Остановка сервера
+	// Остановка сервера
 	web.StopWebServer()
 	t.Log("E2E тест успешно завершен.")
 }

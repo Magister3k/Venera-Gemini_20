@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// startLogRotation периодически проверяет старые логи и сжимает их в фоне (п.7.1, 7.2 ТЗ).
+// startLogRotation периодически проверяет старые логи и сжимает их в фоне.
 func startLogRotation(logDir string, keepDays int) {
 	ticker := time.NewTicker(24 * time.Hour)
 	defer ticker.Stop()
@@ -35,10 +35,10 @@ func startLogRotation(logDir string, keepDays int) {
 				continue
 			}
 
-			// Если файл старше cutoff (п.7.1)
+			// Если файл старше cutoff
 			if info.ModTime().Before(cutoff) {
 				logPath := filepath.Join(logDir, f.Name())
-				// Сжатие логов в архив формата gz (п.7.2 ТЗ)
+				// Сжатие логов в архив формата gz
 				gzPath := logPath + ".gz"
 
 				err := compressFileGZ(logPath, gzPath)
@@ -57,7 +57,7 @@ func startLogRotation(logDir string, keepDays int) {
 	}
 }
 
-// compressFileGZ сжимает файл используя стандартную библиотеку compress/gzip (п.7.2 ТЗ).
+// compressFileGZ сжимает файл используя стандартную библиотеку compress/gzip.
 func compressFileGZ(src, dst string) error {
 	inFile, err := os.Open(src)
 	if err != nil {
@@ -71,8 +71,7 @@ func compressFileGZ(src, dst string) error {
 	}
 	defer outFile.Close()
 
-	// Используем только gzip, так как ТЗ требует "архив формата gz"
-	// (TAR здесь избыточен для одиночного файла)
+	// Используем только gzip (т.к. TAR избыточен для одиночного файла).
 	gw := gzip.NewWriter(outFile)
 	defer gw.Close()
 

@@ -6,8 +6,7 @@ import (
 	"net/http"
 )
 
-// ZabbixExportHandler предоставляет метрики (из п.6) в формате JSON для активного/пассивного сбора Zabbix.
-// ТЗ п.18.6: "Вывод метрик (из п.6) для программы Zabbix."
+// ZabbixExportHandler предоставляет метрики в формате JSON для активного/пассивного сбора Zabbix.
 func ZabbixExportHandler(w http.ResponseWriter, r *http.Request) {
 	// Собираем все текущие метрики
 	stats := CollectAllStats()
@@ -25,6 +24,4 @@ func ZabbixExportHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonData)
 }
 
-// Шаблон конфигурации Zabbix UserParameter или HTTP Agent можно найти в README проекта
-// как того требует п.24 ТЗ: "Добавить шаблон для использования метрик в программе Zabbix".
-// (Файл zabbix_template.xml может быть сгенерирован или приложен в документации).
+// Описание шаблона конфигурации Zabbix UserParameter или HTTP Agent можно найти в файле README

@@ -23,7 +23,7 @@ func InitDragonflyDB() error {
 	var err error
 	delay := 1 * time.Second
 
-	// ТЗ п.18.2: Повторные попытки подключения к СУБД с экспоненциальной задержкой.
+	// Повторные попытки подключения к СУБД с экспоненциальной задержкой.
 	for i := 0; i < 5; i++ {
 		DragonflyClient = redis.NewClient(&redis.Options{
 			Addr:     addr,

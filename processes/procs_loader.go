@@ -28,7 +28,7 @@ func init() {
 	}
 }
 
-// LoadProcesses загружает список процессов из файла processes.toml (п.1.9 ТЗ).
+// LoadProcesses загружает список процессов из файла в формате TOML (processes.toml).
 func LoadProcesses() error {
 	processesMu.Lock()
 	defer processesMu.Unlock()

@@ -5,8 +5,9 @@ import (
 	"venera/models"
 )
 
-// CollectAllStats собирает всю систему метрик для передачи на фронтенд (StatsPayload)
-// или для вывода в Zabbix (п.10.5, п.18.6 ТЗ).
+// CollectAllStats собирает всю систему метрик
+// для передачи на фронтенд (StatsPayload)
+// или для вывода в Zabbix.
 func CollectAllStats() models.StatsPayload {
 	payload := models.StatsPayload{
 		System:    models.SystemMetrics{},
@@ -59,23 +60,24 @@ type SystemStats struct {
 	DbDiskPercent  float64
 }
 
-// ProtectSystem проверяет пороги и возвращает флаг необходимости остановки процессов (п.17.1, 17.2 ТЗ).
+// ProtectSystem проверяет пороги и возвращает флаг необходимости остановки процессов.
 func ProtectSystem() (bool, string) {
 	stats := GetSystemStatsCompat()
 
 	cfg := config.GlobalConfig.System
 
 	if stats.DbDiskPercent < cfg.DiskCriticalThreshold {
-		return true, "Критически мало свободного места на диске! Остановка процессов."
+		return true, "Критически мало свободного места на диске! Остановка всех процессов."
 	}
 	if stats.FreeRAMPercent < cfg.RamCriticalThreshold {
-		return true, "Критически мало свободной оперативной памяти! Остановка процессов."
+		return true, "Критически мало свободной оперативной памяти! Остановка всех процессов."
 	}
 
 	return false, ""
 }
 
-// CheckDiskWarning (п.17.1 ТЗ)
+// CheckDiskWarning проеряет порог и возвращает флаг необходимости предупредить
+// пользователя о подходе объема свободного места на диске к критической отметке.
 func CheckDiskWarning() bool {
 	stats := GetSystemStatsCompat()
 	cfg := config.GlobalConfig.System

@@ -1,6 +1,6 @@
 package models
 
-// AlertRule описывает одно правило генерации алерта из файла generic.alr формата cel (п.1.10 ТЗ).
+// AlertRule описывает одно правило генерации алерта из файла generic.alr формата cel.
 type AlertRule struct {
 	ID         string // Уникальный идентификатор правила
 	Expression string // CEL выражение (например: "value == 'malicious' && source == 'net1'")

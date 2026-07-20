@@ -10,7 +10,7 @@ type EventCallback func(data interface{})
 
 // Manager управляет подписками и рассылкой событий.
 // Данный модуль реализует паттерн Event Bus для предотвращения
-// циклических зависимостей (import cycles) между модулями согласно п.18.1 ТЗ.
+// циклических зависимостей (import cycles) между модулями.
 type Manager struct {
 	mu        sync.RWMutex
 	listeners map[string][]EventCallback
@@ -36,7 +36,7 @@ func (m *Manager) Subscribe(event string, callback EventCallback) {
 }
 
 // ClearEvent удаляет всех слушателей для определенного события.
-// Полезно при динамическом удалении процессов (п.1.4 ТЗ).
+// Полезно при динамическом удалении процессов.
 func (m *Manager) ClearEvent(event string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -52,7 +52,7 @@ func (m *Manager) Emit(event string, data interface{}) {
 	if ok {
 		for _, cb := range callbacks {
 			// Выполняем асинхронно, чтобы не блокировать вызывающего.
-			// П.18.4 ТЗ: Безопасность при обработке паник.
+			// Безопасность при обработке паник.
 			// Так как мы запускаем новую горутину, мы обязаны перехватить панику,
 			// иначе она обрушит всё приложение.
 			go func(callback EventCallback, eventData interface{}) {

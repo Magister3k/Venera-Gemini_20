@@ -12,7 +12,7 @@ var (
 	procStatsMu  sync.RWMutex
 )
 
-// UpdateProcessSpeed обновляет скорость входного потока (байт/с) для процесса (п.6.2 ТЗ)
+// UpdateProcessSpeed обновляет скорость входного потока (байт/с) для процесса
 func UpdateProcessSpeed(id string, speed float64) {
 	procStatsMu.Lock()
 	defer procStatsMu.Unlock()
@@ -22,7 +22,7 @@ func UpdateProcessSpeed(id string, speed float64) {
 	processStats[id].InputSpeedBps = speed
 }
 
-// UpdateProcessResource обновляет данные RAM и CPU для процесса (п.6.2 ТЗ)
+// UpdateProcessResource обновляет данные RAM и CPU для процесса
 func UpdateProcessResource(id string, ram uint64, cpu float64) {
 	procStatsMu.Lock()
 	defer procStatsMu.Unlock()
@@ -33,7 +33,7 @@ func UpdateProcessResource(id string, ram uint64, cpu float64) {
 	processStats[id].CpuLoadPercent = cpu
 }
 
-// IncrementProcessCounts обновляет счетчики обработанных пар JSON (п.6.2 ТЗ)
+// IncrementProcessCounts обновляет счетчики обработанных сообщений
 func IncrementProcessCounts(id string, total, filtered, uniqueSent int64) {
 	procStatsMu.Lock()
 	defer procStatsMu.Unlock()

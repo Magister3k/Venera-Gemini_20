@@ -9,7 +9,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"venera/config"
-	"venera/manifest" // для получения CurrentAppVersion (п.7.3 ТЗ)
+	"venera/manifest" // для получения текушей версии приложения
 )
 
 var Log *logrus.Logger
@@ -27,7 +27,7 @@ func InitLogger() error {
 		return fmt.Errorf("ошибка создания папки логов: %v", err)
 	}
 
-	// Имя файла: год-месяц-число_время_номер.log (п.7.1 ТЗ)
+	// Имя файла: год-месяц-число_время_номер.log
 	now := time.Now()
 	fileName := fmt.Sprintf("%s_%02d.log", now.Format("2006-01-02_15-04"), 1)
 	logPath := filepath.Join(logDir, fileName)
@@ -44,7 +44,7 @@ func InitLogger() error {
 	// Получаем потокобезопасную конфигурацию
 	cfg := config.GetConfig()
 
-	// Интеграция с Windows Event Log (п.7.4 ТЗ)
+	// Интеграция с Windows Event Log
 	eventHook, err := NewEventLogHook("VeneraApp")
 	if err == nil {
 		Log.AddHook(eventHook)
@@ -53,10 +53,10 @@ func InitLogger() error {
 		Log.Warnf("Не удалось подключить хук Windows Event Log (требуются права администратора?): %v", err)
 	}
 
-	// Логирование версии (п.7.3 ТЗ) - устранена заглушка
+	// Логирование версии
 	Log.Infof("Запуск Venera (Версия: %s)", manifest.CurrentAppVersion)
 
-	// Запуск ротации логов в фоне (п.7.1, 7.2 ТЗ)
+	// Запуск ротации логов в фоне
 	// Используем дни из конфигурации. Если 0 - ставим дефолтные 7 дней
 	rotationDays := cfg.Generic.LogRotationDays
 	if rotationDays <= 0 {

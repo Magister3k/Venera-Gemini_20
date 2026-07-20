@@ -5,7 +5,7 @@ import (
 	"net"
 )
 
-// GetNetworkInterfaces возвращает список сетевых адаптеров с их IP-адресами (для п.9.1 ТЗ).
+// GetNetworkInterfaces возвращает список сетевых адаптеров с их IP-адресами.
 // Эта функция может вызываться из модуля диагностики.
 func GetNetworkInterfaces() ([]string, error) {
 	interfaces, err := net.Interfaces()

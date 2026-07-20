@@ -5,22 +5,21 @@ import (
 	"venera/models"
 )
 
-// ProcessAlert обрабатывает сгенерированный алерт (п.7.5 ТЗ).
+// ProcessAlert обрабатывает сгенерированный алерт.
 // Выводит его в систему логирования, Event Log или отправляет в GUI.
 func ProcessAlert(event models.AlertEvent, severity string) {
-	// Формируем детальное сообщение (п.7.5)
+	// Формируем детальное сообщение
 	msg := event.Message
 	if event.Key != "" || event.Value != "" {
 		msg += " [source=" + event.Source + ", key=" + event.Key + ", value=" + event.Value + "]"
 	}
 
-	// Логирование согласно severity (п.7 ТЗ)
+	// Логирование согласно severity
 	switch severity {
 	case "critical", "error", "err":
 		logging.Log.Error("ALERT: " + msg)
-		// Если нужно писать критические алерты в Windows Event Log (п.7.4 ТЗ)
-		// Это можно реализовать через вызов eventcreate или использовать готовый Event Log
-		// logEventToWindows(msg, "ERROR", 1000)
+		// Запись критических алертов в Windows Event Log
+		logEventToWindows(msg, "ERROR", 1000)
 	case "warning", "warn":
 		logging.Log.Warn("ALERT: " + msg)
 	case "info":

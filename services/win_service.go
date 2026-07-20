@@ -26,12 +26,12 @@ func (p *program) Stop(s service.Service) error {
 	return nil
 }
 
-// getService возвращает объект службы kardianos/service (имя строго "VeneraSrv" по п.15.6 ТЗ)
+// getService возвращает объект службы kardianos/service
 func getService(startApp func(), stopApp func()) (service.Service, error) {
 	svcConfig := &service.Config{
 		Name:        "VeneraSrv",
-		DisplayName: "Venera Collector",
-		Description: "Система сбора идентификаторов в потоке пакетных данных (Tshark/Dragonfly/PostgreSQL).",
+		DisplayName: "Venera",
+		Description: "Система сбора идентификаторов в потоке пакетных данных",
 	}
 
 	prg := &program{
@@ -63,10 +63,10 @@ func RunService(startApp func(), stopApp func()) error {
 	return nil
 }
 
-// InstallService устанавливает службу в ОС Windows (п.14, 15.6 ТЗ)
+// InstallService устанавливает службу Windows
 func InstallService() error {
 	if !IsAdmin() {
-		return fmt.Errorf("для установки службы требуются права Администратора (п.16.2 ТЗ)")
+		return fmt.Errorf("для установки службы требуются права Администратора")
 	}
 
 	s, err := getService(nil, nil)
@@ -88,7 +88,7 @@ func InstallService() error {
 	return nil
 }
 
-// UninstallService останавливает и удаляет службу из ОС Windows (п.14, 15.7 ТЗ)
+// UninstallService останавливает и удаляет службу Windows
 func UninstallService() error {
 	if !IsAdmin() {
 		return fmt.Errorf("для удаления службы требуются права Администратора")
@@ -104,7 +104,7 @@ func UninstallService() error {
 		return fmt.Errorf("служба VeneraSrv не установлена")
 	}
 
-	// Попытка остановить перед удалением (п.15.7 ТЗ)
+	// Попытка остановить перед удалением
 	if status == service.StatusRunning {
 		_ = s.Stop()
 	}
@@ -118,7 +118,7 @@ func UninstallService() error {
 	return nil
 }
 
-// ControlService позволяет запустить или остановить установленную службу (п.14 ТЗ)
+// ControlService позволяет запустить или остановить установленную службу
 func ControlService(action string) error {
 	if !IsAdmin() {
 		return fmt.Errorf("для управления службой требуются права Администратора")
@@ -139,7 +139,7 @@ func ControlService(action string) error {
 	}
 }
 
-// GetServiceStatus возвращает текущее состояние службы (п.9.1 ТЗ)
+// GetServiceStatus возвращает текущее состояние службы
 func GetServiceStatus() (string, error) {
 	s, err := getService(nil, nil)
 	if err != nil {
@@ -161,9 +161,9 @@ func GetServiceStatus() (string, error) {
 	}
 }
 
-// IsAdmin проверяет, запущено ли приложение с правами Администратора (п.16 ТЗ)
+// IsAdmin проверяет, запущено ли приложение с правами Администратора
 func IsAdmin() bool {
-	// Для Windows мы пытаемся открыть 물리ческий диск (PhysicalDrive) на чтение
+	// Для Windows мы пытаемся открыть физический диск (PhysicalDrive) на чтение
 	// или просто проверяем встроенную функцию из golang.org/x/sys/windows.
 	// Ограничимся простой проверкой открытия токена доступа.
 	var sid *windows.SID

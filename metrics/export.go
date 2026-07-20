@@ -29,7 +29,7 @@ type processMemoryCounters struct {
 }
 
 // GetProcessRAM возвращает использование RAM (WorkingSetSize) процессом по его PID (в байтах)
-// ТЗ п.6.2: "потребление RAM". Без сторонних библиотек.
+// Потребление RAM без сторонних библиотек.
 func GetProcessRAM(pid int) (uint64, error) {
 	handle, err := syscall.OpenProcess(processQueryInformation|processVMRead, false, uint32(pid))
 	if err != nil {

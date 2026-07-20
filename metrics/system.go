@@ -24,7 +24,7 @@ type memoryStatusEx struct {
 	ullAvailExtendedVirtual uint64
 }
 
-// GetSystemRAM собирает статистику по оперативной памяти (п.6.1 ТЗ) без сторонних библиотек.
+// GetSystemRAM собирает статистику по оперативной памяти без сторонних библиотек.
 // Возвращает свободную память в байтах и процент свободной памяти.
 func GetSystemRAM() (uint64, float64, error) {
 	var memInfo memoryStatusEx
@@ -42,7 +42,7 @@ func GetSystemRAM() (uint64, float64, error) {
 	return freeBytes, freePercent, nil
 }
 
-// GetDiskSpace собирает статистику свободного места на диске (п.6.1 ТЗ) без сторонних библиотек.
+// GetDiskSpace собирает статистику свободного места на диске без сторонних библиотек.
 // path - путь (буква диска "C:\" или папка).
 // Возвращает свободное место в байтах и процент.
 func GetDiskSpace(path string) (uint64, float64, error) {

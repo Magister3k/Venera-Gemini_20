@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// Путь к файлу манифеста по умолчанию (в корне проекта/рядом с exe)
+// Путь к файлу манифеста по умолчанию (в корне проекта рядом с exe)
 var ManifestFilePath = "manifest.xml"
 var ManifestBackupPath = "manifest.xml.bak"
 
@@ -21,7 +21,7 @@ var CurrentAppVersion = "1.0.0"
 // ProviderName - имя ETW провайдера
 const ProviderName = "VeneraApp"
 
-// EventIDManifestUpdated - Event ID, который требуется по ТЗ (п.8.6)
+// EventIDManifestUpdated - Event ID 2003
 const EventIDManifestUpdated = 2003
 
 // Init - точка входа для работы с манифестом при старте приложения
@@ -193,7 +193,7 @@ func LogManifestVersion() error {
 	return nil
 }
 
-// notifyError выводит GUI-уведомление (8.2) при ошибках
+// notifyError выводит GUI-уведомление при ошибках
 func notifyError(message string) {
 	// В зависимости от того, запущено ли приложение в режиме systray,
 	// выводим уведомление.
@@ -203,10 +203,10 @@ func notifyError(message string) {
 
 	// Здесь добавим пункт меню с пометкой Ошибка.
 	// В реальной архитектуре Venera этот вызов должен уходить в подсистему логирования или интерфейса.
-	fmt.Printf("GUI УВЕДОМЛЕНИЕ (ОШИБКА РЕГИСТРАЦИИ): %s\n", message)
+	fmt.Printf("Ошибка регистрации: %s\n", message)
 
 	// Попытка использовать systray, если он проинициализирован.
 	// Поскольку systray инициализируется асинхронно, прямое добавление может упасть, если петля не запущена.
-	// Для безопасной интеграции с ТЗ (п.8.2) оставляем этот вызов абстрактным:
+	// Для безопасной интеграции оставляем этот вызов абстрактным:
 	// systray.AddMenuItem("Ошибка: "+message, "Ошибка манифеста")
 }

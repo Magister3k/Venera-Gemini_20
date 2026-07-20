@@ -22,7 +22,7 @@ import (
 	"venera/services"
 )
 
-// DiagnosticReport содержит результаты выполнения всех проверок из п.9.1 ТЗ.
+// DiagnosticReport содержит результаты выполнения всех проверок.
 type DiagnosticReport struct {
 	AppVersion          string
 	ConfigExists        bool
@@ -43,7 +43,7 @@ type DiagnosticReport struct {
 	EventLogErrors      []string
 }
 
-// RunDiagnosis собирает всю диагностическую информацию (п.9.1 ТЗ)
+// RunDiagnosis собирает всю диагностическую информацию
 func RunDiagnosis() (*DiagnosticReport, error) {
 	report := &DiagnosticReport{
 		AppVersion: manifest.CurrentAppVersion,
@@ -153,7 +153,7 @@ func getEventLogErrors() []string {
 	return result
 }
 
-// ExportReportPDF создает отчет в формате PDF на русском языке (п.9.1.16 ТЗ)
+// ExportReportPDF создает отчет в формате PDF на русском языке
 func ExportReportPDF(report *DiagnosticReport, outputPath string) error {
 	pdf := gopdf.GoPdf{}
 	pdf.Start(gopdf.Config{PageSize: *gopdf.PageSizeA4})
@@ -225,7 +225,7 @@ func ExportReportPDF(report *DiagnosticReport, outputPath string) error {
 	return nil
 }
 
-// CreateArchiveGZ создает архив (tar.gz) с логами, отчётом и конфигами (п.9.1.17 ТЗ)
+// CreateArchiveGZ создает архив (tar.gz) с логами, отчётом и конфигами
 func CreateArchiveGZ(pdfReportPath, outputPath string) error {
 	outFile, err := os.Create(outputPath)
 	if err != nil {

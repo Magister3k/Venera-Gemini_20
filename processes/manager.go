@@ -20,7 +20,7 @@ var (
 type RunningProcess struct {
 	Config  models.ProcessConfig
 	Cancel  context.CancelFunc
-	Trigger chan struct{} // Канал для сигнализации о достижении порога (ПЗ)
+	Trigger chan struct{} // Канал для сигнализации о достижении порогового значения
 	WG      sync.WaitGroup
 }
 
@@ -30,7 +30,7 @@ type ProcessManager struct {
 	activeWorkers int
 	workerMu      sync.Mutex
 
-	// sourceLocks предотвращает одновременный запуск нескольких воркеров для одного источника (п.4.2 ТЗ)
+	// sourceLocks предотвращает одновременный запуск нескольких воркеров для одного источника
 	sourceLocks   map[string]bool
 	sourceLocksMu sync.Mutex
 }
@@ -42,7 +42,7 @@ func NewProcessManager() *ProcessManager {
 	}
 }
 
-// StartProcess запускает процесс сбора данных ПВn (п.1.4, 4.1 ТЗ)
+// StartProcess запускает процесс сбора данных
 func (pm *ProcessManager) StartProcess(p models.ProcessConfig) error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
@@ -73,7 +73,7 @@ func (pm *ProcessManager) StartProcess(p models.ProcessConfig) error {
 	return nil
 }
 
-// StopProcess останавливает процесс (п.1.4 ТЗ)
+// StopProcess останавливает процесс
 func (pm *ProcessManager) StopProcess(id string) error {
 	pm.mu.Lock()
 	rp, exists := pm.activeProcs[id]
@@ -92,17 +92,17 @@ func (pm *ProcessManager) StopProcess(id string) error {
 	UpdateProcessStatus(id, models.StatusStopped)
 	logging.Log.Infof("Остановлен процесс: %s", id)
 
-	// Запускаем финальную обработку остатков в БД (п.5.5 ТЗ: "а также при остановке процесса")
+	// Запускаем финальную обработку остатков в БД)
 	go pm.runDataProcessingTask(id, true)
 
 	return nil
 }
 
-// runCollectionProcess (ПВ1...ПВn) выполняет сбор данных (п.4.1, 5.1 ТЗ)
+// runCollectionProcess выполняет сбор данных
 func (pm *ProcessManager) runCollectionProcess(ctx context.Context, rp *RunningProcess) {
 	defer rp.WG.Done()
 
-	// Функция-триггер безопасно отправляет сигнал в канал при достижении ПЗ
+	// Функция-триггер безопасно отправляет сигнал в канал при достижении порогового значения
 	trigger := func() {
 		select {
 		case rp.Trigger <- struct{}{}:
@@ -132,7 +132,7 @@ func (pm *ProcessManager) collectFromFileOrFolder(ctx context.Context, p models.
 	return RunTsharkFileOrFolder(ctx, p, trigger)
 }
 
-// runTaskManagementProcess - Процесс управления задачами (п.4.2 ТЗ)
+// runTaskManagementProcess - Процесс управления задачами
 func (pm *ProcessManager) runTaskManagementProcess(ctx context.Context, rp *RunningProcess) {
 	defer rp.WG.Done()
 
@@ -143,9 +143,9 @@ func (pm *ProcessManager) runTaskManagementProcess(ctx context.Context, rp *Runn
 		select {
 		case <-ctx.Done():
 			return // Корректно выходим при остановке
-		case <-rp.Trigger: // Сигнал о достижении порога записей (ПЗ)
+		case <-rp.Trigger: // Сигнал о достижении порога записей
 			pm.spawnDataWorker(rp.Config.ID)
-		case <-ticker.C: // Срабатывание таймера (ТПn)
+		case <-ticker.C: // Срабатывание таймера
 			// Периодически очищаем SortedSet от устаревших данных
 			olderThan := time.Now().Add(-24 * time.Hour).UnixMilli()
 			_ = data.CleanupSortedSet(rp.Config.ID, olderThan)
@@ -155,9 +155,9 @@ func (pm *ProcessManager) runTaskManagementProcess(ctx context.Context, rp *Runn
 	}
 }
 
-// spawnDataWorker запускает горутину обработки (ПОn), соблюдая ТЗ
+// spawnDataWorker запускает горутину обработки
 func (pm *ProcessManager) spawnDataWorker(sourceID string) {
-	// ТЗ п.4.2: "С одной структурой может работать только один процесс обработки данных одномоментно"
+	// С одной структурой может работать только один процесс обработки данных одномоментно
 	pm.sourceLocksMu.Lock()
 	if pm.sourceLocks[sourceID] {
 		pm.sourceLocksMu.Unlock()
@@ -166,7 +166,7 @@ func (pm *ProcessManager) spawnDataWorker(sourceID string) {
 	pm.sourceLocks[sourceID] = true
 	pm.sourceLocksMu.Unlock()
 
-	// ТЗ п.1.5, 4.2: "одновременно может быть запущено до n таких процессов"
+	// Одновременно может быть запущено до n таких процессов
 	pm.workerMu.Lock()
 	if pm.activeWorkers >= config.GlobalConfig.Generic.MaxProcesses {
 		pm.workerMu.Unlock()
@@ -195,7 +195,7 @@ func (pm *ProcessManager) spawnDataWorker(sourceID string) {
 	}()
 }
 
-// runDataProcessingTask (ПОn) - выполняет задачи фильтрации и переноса данных (п.5.5 ТЗ)
+// runDataProcessingTask - выполняет задачи фильтрации и переноса данных
 func (pm *ProcessManager) runDataProcessingTask(sourceID string, isFinal bool) {
 	count := int64(config.GlobalConfig.DragonflyDB.BatchSize)
 	if isFinal {

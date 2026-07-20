@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	// mu защищает доступ к GlobalConfig для предотвращения Race Conditions (п. 27, 28 ТЗ)
+	// mu защищает доступ к GlobalConfig для предотвращения Race Conditions
 	mu           sync.RWMutex
 	GlobalConfig *models.Config
 	ConfigPath   string
@@ -20,7 +20,7 @@ var (
 
 func init() {
 	// Определение пути к config.toml относительно исполняемого файла,
-	// что критически важно при запуске в качестве службы Windows (п.1.1 ТЗ),
+	// что критически важно при запуске в качестве службы Windows,
 	// так как рабочий каталог службы может отличаться (например, C:\Windows\System32).
 	exePath, err := os.Executable()
 	if err == nil {
@@ -31,24 +31,24 @@ func init() {
 	}
 }
 
-// DefaultConfig возвращает конфигурацию по умолчанию со значениями, соответствующими ТЗ
+// DefaultConfig возвращает конфигурацию по умолчанию
 func DefaultConfig() *models.Config {
 	return &models.Config{
 		Generic: models.GenericConfig{
 			Mode:            "tray", // Режим работы: tray (системный трей) или service (служба)
-			AutoStart:       false,  // Автоматический старт процессов при запуске
-			MaxProcesses:    20,     // Ограничение ТЗ п.1.5 (до 20 процессов)
+			AutoStart:       false,  // Автоматический старт всех процессов при запуске
+			MaxProcesses:    20,     // Ограничение количества процессов
 			WebServerPort:   8080,   // Порт веб-сервера по умолчанию
 			LogRotationDays: 7,      // Срок хранения логов в днях
 		},
 		Paths: models.PathsConfig{
-			PodmanExe:   "podman",
-			TsharkExe:   "tshark",
+			PodmanExe:   "progs/podman/podman.exe",
+			TsharkExe:   "progs/wireshark/tshark.exe",
 			FilterList:  "settings/generic.flt",
 			ControlList: "settings/generic.ctr",
 			AlertsList:  "settings/generic.alr",
-			DbImage:     "docker.io/dragonflydb/dragonfly",
-			DbBackupDir: "backups",
+			DbImage:     "progs/dragonflydb/dragonflydb.tar.gz",
+			DbBackupDir: "cache",
 		},
 		DragonflyDB: models.DragonflyDBConfig{
 			Host:      "127.0.0.1",
@@ -61,20 +61,20 @@ func DefaultConfig() *models.Config {
 			Host:     "127.0.0.1",
 			Port:     5432,
 			User:     "postgres",
-			Password: "password",
+			Password: "postgres",
 			Database: "Venera",
 			SSLMode:  "disable",
 		},
 		System: models.SystemConfig{
-			DiskWarningThreshold:  15.0, // 15% свободного места для предупреждения (п.17.1 ТЗ)
-			DiskCriticalThreshold: 5.0,  // 5% свободного места для остановки процессов (п.17.2 ТЗ)
-			RamCriticalThreshold:  5.0,  // 5% свободной RAM для остановки процессов (п.17.2 ТЗ)
+			DiskWarningThreshold:  15.0, // Объем свободного места для предупреждения
+			DiskCriticalThreshold: 5.0,  // Объем свободного места для остановки процессов
+			RamCriticalThreshold:  5.0,  // Объем свободной RAM для остановки процессов
 		},
 	}
 }
 
 // GetConfig возвращает потокобезопасную глубокую копию или указатель на текущую конфигурацию.
-// Используется для предотвращения race condition при чтении из разных горутин (п.18.4, 27, 28 ТЗ).
+// Используется для предотвращения race condition при чтении из разных горутин.
 func GetConfig() models.Config {
 	mu.RLock()
 	defer mu.RUnlock()
@@ -182,12 +182,12 @@ func SaveConfig(cfg *models.Config) error {
 
 // validateConfig проверяет корректность параметров конфигурации на соответствие ТЗ
 func validateConfig(cfg *models.Config) error {
-	// ТЗ п.1.5: Одновременно может быть запущено до 20 рабочих процессов
+	// Одновременно может быть запущено до 20 рабочих процессов
 	if cfg.Generic.MaxProcesses <= 0 || cfg.Generic.MaxProcesses > 20 {
 		return fmt.Errorf("максимальное количество процессов должно быть в диапазоне от 1 до 20 (настроено: %d)", cfg.Generic.MaxProcesses)
 	}
 
-	// Проверка режима работы (п.1.1 ТЗ)
+	// Проверка режима работы
 	if cfg.Generic.Mode != "tray" && cfg.Generic.Mode != "service" {
 		return fmt.Errorf("недопустимый режим работы '%s'; разрешены только 'tray' или 'service'", cfg.Generic.Mode)
 	}
@@ -197,7 +197,7 @@ func validateConfig(cfg *models.Config) error {
 		return fmt.Errorf("недопустимый порт веб-сервера: %d", cfg.Generic.WebServerPort)
 	}
 
-	// Проверка порогов диска и памяти (п.17 ТЗ)
+	// Проверка порогов диска и памяти
 	if cfg.System.DiskWarningThreshold < 0 || cfg.System.DiskWarningThreshold > 100 {
 		return fmt.Errorf("порог предупреждения диска должен быть от 0 до 100%%")
 	}
@@ -208,7 +208,7 @@ func validateConfig(cfg *models.Config) error {
 		return fmt.Errorf("критический порог RAM должен быть от 0 до 100%%")
 	}
 
-	// Проверка лимитов DragonflyDB (п.1.11, 4.1, 5.5 ТЗ)
+	// Проверка лимитов DragonflyDB
 	if cfg.DragonflyDB.BatchSize <= 0 {
 		return fmt.Errorf("размер пакета DragonflyDB (batch_size) должен быть больше 0")
 	}

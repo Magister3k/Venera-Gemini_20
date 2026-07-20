@@ -12,13 +12,12 @@ import (
 
 var (
 	// controlMap хранит список значений на контроле.
-	// Формат csv (_ключ_|_значение_) (п.1.8 ТЗ)
-	// Ключ в мапе: "ключ|значение" (композитный)
+	// Формат в мапе: "ключ|значение" (композитный)
 	controlMap map[string]struct{}
 	controlMu  sync.RWMutex // Защита от состояния гонки
 )
 
-// LoadControlList читает файл generic.ctr и заполняет структуру map (п.2.6 ТЗ).
+// LoadControlList читает файл generic.ctr и заполняет структуру map.
 func LoadControlList(filePath string) error {
 	controlMu.Lock()
 	defer controlMu.Unlock()
@@ -38,7 +37,8 @@ func LoadControlList(filePath string) error {
 
 	scanner := bufio.NewScanner(file)
 
-	// ТЗ п.1.8: "Хранение списка значений на контроле ... формата csv (_ключ_|_значение_)"
+	// Хранение списка значений на контроле в форматe csv
+	// _ключ_|_значение_
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
