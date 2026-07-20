@@ -1,4 +1,4 @@
-package notify_test
+package unit_test
 
 import (
 	"os"

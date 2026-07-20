@@ -1,4 +1,4 @@
-package data_test
+package unit_test
 
 import (
 	"github.com/sirupsen/logrus"

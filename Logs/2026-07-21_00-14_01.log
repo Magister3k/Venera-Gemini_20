@@ -1,0 +1,5 @@
+time="2026-07-21 00:14:20" level=info msg="Запуск Venera (Версия: 1.0.0)"
+time="2026-07-21 00:14:20" level=warning msg="Podman не найден по пути: progs/podman/podman.exe"
+time="2026-07-21 00:14:20" level=warning msg="Файл фильтров settings/generic.flt не найден. Фильтрация отключена."
+time="2026-07-21 00:14:20" level=warning msg="Файл контроля settings/generic.ctr не найден. Контроль значений отключен."
+time="2026-07-21 00:14:20" level=warning msg="Файл алертов settings/generic.alr не найден. Алерты отключены"

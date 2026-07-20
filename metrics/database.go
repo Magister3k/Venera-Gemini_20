@@ -25,13 +25,10 @@ func GetDatabaseSizes() (uint64, uint64, error) {
 	if data.PgPool != nil {		
 		// Используем встроенную функцию pg_database_size
 		query := `SELECT pg_database_size(current_database());`
-		err := data.PgPool.QueryRow(context.Background(), query).Scan(&pgdbSize)
-		//if err != nil {
-			// Если запрос упал, просто вернем 0 или можно залогировать (логирование в collector.go)
-		//}
+		_ = data.PgPool.QueryRow(context.Background(), query).Scan(&pgdbSize)
 	}
 
-	return cachedbSize, pgdbSize, err
+	return cachedbSize, pgdbSize, nil
 }
 
 // parseInfoMemory парсит вывод INFO memory Redis/Dragonfly

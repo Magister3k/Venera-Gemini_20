@@ -18,6 +18,7 @@ type GenericConfig struct {
 	MaxProcesses    int    `toml:"max_processes"`     // Максимальное количество одновременных процессов обработки
 	WebServerPort   int    `toml:"web_server_port"`   // Порт для веб-интерфейса
 	LogRotationDays int    `toml:"log_rotation_days"` // Количество дней для хранения логов до их ротации
+	LocalUIType     string `toml:"local_ui_type"`     // Тип локального интерфейса: "static" или "react"
 }
 
 // PathsConfig содержит пути к внешним зависимостям и конфигурационным файлам.

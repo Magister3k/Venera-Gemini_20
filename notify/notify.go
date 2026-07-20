@@ -19,7 +19,7 @@ func ProcessAlert(event models.AlertEvent, severity string) {
 	case "critical", "error", "err":
 		logging.Log.Error("ALERT: " + msg)
 		// Запись критических алертов в Windows Event Log
-		logEventToWindows(msg, "ERROR", 1000)
+		// Здесь может быть вызов hook, который мы уже сделали в logging
 	case "warning", "warn":
 		logging.Log.Warn("ALERT: " + msg)
 	case "info":

@@ -1,4 +1,4 @@
-package data_test
+package unit_test
 
 import (
 	"testing"

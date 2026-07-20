@@ -9,9 +9,9 @@ require (
 	github.com/gofiber/websocket/v2 v2.2.1
 	github.com/google/cel-go v0.29.2
 	github.com/jackc/pgx/v5 v5.10.0
-	github.com/jung-kurt/gofpdf v1.16.2
 	github.com/kardianos/service v1.3.0
 	github.com/redis/go-redis/v9 v9.21.0
+	github.com/signintech/gopdf v0.36.2
 	github.com/sirupsen/logrus v1.9.4
 	github.com/valyala/fastjson v1.6.10
 	golang.org/x/sys v0.47.0
@@ -41,12 +41,10 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c // indirect
-	github.com/phpdave11/gofpdf v1.4.3 // indirect
 	github.com/phpdave11/gofpdi v1.0.16 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/savsgio/gotils v0.0.0-20230208104028-c358bd845dee // indirect
-	github.com/signintech/gopdf v0.36.2 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.51.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect

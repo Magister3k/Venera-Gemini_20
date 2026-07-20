@@ -2,10 +2,8 @@ package services
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/kardianos/service"
-	"golang.org/x/sys/windows"
 
 	"venera/logging"
 	"venera/utils"
