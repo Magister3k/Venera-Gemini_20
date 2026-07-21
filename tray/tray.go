@@ -40,6 +40,13 @@ func onReady() {
 		logging.Log.Warn("Иконка трея не загружена (assets.IconBytes пуст)")
 	}
 
+	cfg := config.GetConfig()
+
+	// Скрываем консоль после полной загрузки tray, если было включено отображение
+	if cfg.Generic.ShowConsoleOnStartup {
+		utils.HideConsole()
+	}
+
 	// Проверка прав администратора
 	if !utils.IsAdmin() {
 		// Чтобы использовать systray для уведомления:
@@ -51,6 +58,7 @@ func onReady() {
 		systray.AddSeparator()
 
 		logging.Log.Warn("Приложение запущено без прав Администратора")
+		utils.ShowBalloonNotification("Внимание", "Приложение запущено без прав Администратора. Некоторые функции могут быть недоступны.")
 	}
 
 	// Меню управления
@@ -118,7 +126,6 @@ func openWebInterface() {
 }
 
 // ShowErrorNotification добавляет пункт меню с ошибкой для имитации уведомлений в трее
-// (Так как getlantern/systray не имеет встроенного метода ShowNotification).
 func ShowErrorNotification(message string) {
 	// Взаимодействие с GUI должно выполняться в основном потоке,
 	// но systray thread-safe для AddMenuItem.
@@ -130,4 +137,7 @@ func ShowErrorNotification(message string) {
 		time.Sleep(10 * time.Second)
 		mErr.Hide() // Скрывает пункт из меню
 	}()
+
+	// Выводим системный Balloon
+	utils.ShowBalloonNotification("Ошибка Venera", message)
 }

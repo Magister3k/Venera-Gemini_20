@@ -94,6 +94,11 @@ func main() {
 	}
 	cfg := config.GetConfig()
 
+	// Скрываем консоль сразу, если режим tray и отключено отображение консоли при старте
+	if cfg.Generic.Mode == "tray" && !cfg.Generic.ShowConsoleOnStartup {
+		utils.HideConsole()
+	}
+
 	// Инициализация логгера
 	if err := logging.InitLogger(); err != nil {
 		fmt.Printf("Критическая ошибка инициализации логгера: %v\n", err)

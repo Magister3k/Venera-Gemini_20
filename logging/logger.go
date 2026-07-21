@@ -56,6 +56,8 @@ func InitLogger() error {
 	// Логирование версии
 	Log.Infof("Запуск Venera (Версия: %s)", manifest.CurrentAppVersion)
 
+	Log.AddHook(&WsLogHook{})
+
 	// Запуск ротации логов в фоне
 	// Используем дни из конфигурации. Если 0 - ставим дефолтные 7 дней
 	rotationDays := cfg.Generic.LogRotationDays
