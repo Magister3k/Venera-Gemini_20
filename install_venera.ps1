@@ -1,15 +1,15 @@
 <#
 .SYNOPSIS
 Скрипт установки Venera как службы Windows.
-Этот скрипт использует встроенный механизм приложения (п.15.6 ТЗ).
+Этот скрипт использует встроенный механизм приложения.
 #>
 
 $ErrorActionPreference = 'Stop'
 
-# Требуются права администратора (п.16.2 ТЗ)
+# Требуются права Администратора
 $IsAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $IsAdmin) {
-    Write-Warning "Для установки службы требуются права администратора. Перезапустите скрипт от имени администратора."
+    Write-Warning "Для установки службы требуются права Администратора. Перезапустите скрипт от имени администратора."
     Exit
 }
 
@@ -21,7 +21,7 @@ if (-not (Test-Path $ExePath)) {
 
 Write-Host "Установка службы VeneraSrv через внутренний модуль приложения..." -ForegroundColor Cyan
 
-# Используем флаг --install_srv (или -i) из п.15.6 ТЗ
+# Используем флаг --install_srv (или -i)
 & $ExePath --install_srv
 
 if ($LASTEXITCODE -eq 0) {

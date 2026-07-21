@@ -35,11 +35,13 @@ func init() {
 func DefaultConfig() *models.Config {
 	return &models.Config{
 		Generic: models.GenericConfig{
-			Mode:            "tray", // Режим работы: tray (системный трей) или service (служба)
-			AutoStart:       false,  // Автоматический старт всех процессов при запуске
-			MaxProcesses:    20,     // Ограничение количества процессов
-			WebServerPort:   8080,   // Порт веб-сервера по умолчанию
-			LogRotationDays: 7,      // Срок хранения логов в днях
+			Mode:                 "tray", // Режим работы: tray (системный трей) или service (служба)
+			AutoStart:            false,  // Автоматический старт всех процессов при запуске
+			MaxProcesses:         20,     // Ограничение количества процессов
+			WebServerPort:        8080,   // Порт веб-сервера по умолчанию
+			LogRotationDays:      7,      // Срок хранения логов в днях
+			LocalUIType:          "react",
+			ShowConsoleOnStartup: true,   // По умолчанию показываем консоль, потом скрываем
 		},
 		Paths: models.PathsConfig{
 			PodmanExe:   "progs/podman/podman.exe",

@@ -1,15 +1,15 @@
 <#
 .SYNOPSIS
 Скрипт удаления службы Venera.
-Этот скрипт использует встроенный механизм приложения (п.15.7 ТЗ).
+Этот скрипт использует встроенный механизм приложения.
 #>
 
 $ErrorActionPreference = 'Stop'
 
-# Требуются права администратора (п.16.2 ТЗ)
+# Требуются права Администратора
 $IsAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $IsAdmin) {
-    Write-Warning "Для удаления службы требуются права администратора. Перезапустите скрипт от имени администратора."
+    Write-Warning "Для удаления службы требуются права Администратора. Перезапустите скрипт от имени Администратора."
     Exit
 }
 
@@ -21,7 +21,7 @@ if (-not (Test-Path $ExePath)) {
 
 Write-Host "Удаление службы VeneraSrv через внутренний модуль приложения..." -ForegroundColor Cyan
 
-# Используем флаг --uninstall_srv (или -u) из п.15.7 ТЗ
+# Используем флаг --uninstall_srv (или -u)
 & $ExePath --uninstall_srv
 
 if ($LASTEXITCODE -eq 0) {

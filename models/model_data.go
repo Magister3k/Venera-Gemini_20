@@ -13,12 +13,13 @@ type Config struct {
 
 // GenericConfig содержит общие настройки приложения.
 type GenericConfig struct {
-	Mode            string `toml:"mode"`              // Режим работы: "tray" (системный трей) или "service" (служба)
-	AutoStart       bool   `toml:"auto_start"`        // Автоматический старт всех процессов при запуске
-	MaxProcesses    int    `toml:"max_processes"`     // Максимальное количество одновременных процессов обработки
-	WebServerPort   int    `toml:"web_server_port"`   // Порт для веб-интерфейса
-	LogRotationDays int    `toml:"log_rotation_days"` // Количество дней для хранения логов до их ротации
-	LocalUIType     string `toml:"local_ui_type"`     // Тип локального интерфейса: "static" или "react"
+	Mode                 string `toml:"mode"`                    // Режим работы: "tray" (системный трей) или "service" (служба)
+	AutoStart            bool   `toml:"auto_start"`              // Автоматический старт всех процессов при запуске
+	MaxProcesses         int    `toml:"max_processes"`           // Максимальное количество одновременных процессов обработки
+	WebServerPort        int    `toml:"web_server_port"`         // Порт для веб-интерфейса
+	LogRotationDays      int    `toml:"log_rotation_days"`       // Количество дней для хранения логов до их ротации
+	LocalUIType          string `toml:"local_ui_type"`           // Тип локального интерфейса: "static" или "react"
+	ShowConsoleOnStartup bool   `toml:"show_console_on_startup"` // true - показывать консоль при старте, false - сразу скрывать
 }
 
 // PathsConfig содержит пути к внешним зависимостям и конфигурационным файлам.

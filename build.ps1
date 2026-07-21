@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Скрипт сборки проекта Venera для PowerShell (п.25 ТЗ).
+Скрипт сборки проекта Venera для PowerShell.
 #>
 
 $ErrorActionPreference = 'Stop'
@@ -30,7 +30,7 @@ try {
 Write-Host "Загрузка зависимостей..." -ForegroundColor Cyan
 go mod tidy
 
-# 4. Внедрение иконки в тело программы (п.21 ТЗ)
+# 4. Внедрение иконки в тело программы
 # Для интеграции иконки используется go-winres, так как это стандарт де-факто в Go
 try {
     go-winres version | Out-Null
