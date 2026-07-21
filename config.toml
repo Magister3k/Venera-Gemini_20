@@ -4,15 +4,17 @@
   max_processes = 20
   web_server_port = 8080
   log_rotation_days = 7
+  local_ui_type = "react"
+  show_console_on_startup = true
 
 [Paths]
-  podman_exe = "c:\Program Files\RedHat\Podman\podman.exe"
-  tshark_exe = "c:\Program Files\Wireshark\tshark.exe"
+  podman_exe = "c:/Program Files/RedHat/Podman/podman.exe"
+  tshark_exe = "c:/Program Files/Wireshark/tshark.exe"
   filter_list = "settings/generic.flt"
   control_list = "settings/generic.ctr"
   alerts_list = "settings/generic.alr"
-  db_image = "dragonflydb.tar.gz"
-  db_backup_dir = "backups"
+  db_image = "progs/cachedb/dragonflydb.tar.gz"
+  db_backup_dir = "cache"
 
 [DragonflyDB]
   host = "127.0.0.1"
