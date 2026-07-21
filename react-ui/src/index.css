@@ -26,13 +26,46 @@ body {
 }
 
 nav {
-  width: 250px;
+  width: 60px; /* Свернутое состояние */
   background-color: var(--nav-bg);
   border-right: 1px solid var(--border-color);
-  padding: 20px;
+  padding: 20px 10px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+nav.expanded {
+  width: 250px; /* Развернутое состояние */
+  padding: 20px;
+}
+
+nav h2 {
+  margin: 0 0 20px 0;
+  overflow: hidden;
+}
+
+/* Кнопка закрепления (Pin) вверху панели */
+.pin-button {
+  background: none;
+  border: none;
+  color: var(--text-color);
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 5px;
+  transition: transform 0.2s;
+  display: none;
+}
+
+nav.expanded .pin-button {
+  display: block;
+}
+
+.pin-button.pinned {
+  transform: rotate(-45deg); /* Поворот иконки кнопки при закреплении */
 }
 
 nav a {
@@ -40,6 +73,13 @@ nav a {
   text-decoration: none;
   color: var(--text-color);
   border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+nav a:hover {
+  background-color: var(--border-color);
 }
 
 nav a.active {
@@ -47,25 +87,102 @@ nav a.active {
   color: white;
 }
 
+/* Скрытие текстовых меток меню при свернутой панели */
+nav a span, nav .theme-toggle span {
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+nav.expanded a span, nav.expanded .theme-toggle span {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 main {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
+  max-width: 100%;
 }
 
 .theme-toggle {
-  margin-top: auto;
   padding: 10px;
   cursor: pointer;
   background: none;
   border: 1px solid var(--border-color);
   color: var(--text-color);
   border-radius: 4px;
+  overflow: hidden;
 }
 
 .card {
   border: 1px solid var(--border-color);
-  padding: 15px;
+  padding: 20px;
   border-radius: 8px;
-  margin-bottom: 15px;
+  margin-bottom: 20px;
+  background-color: var(--bg-color);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
+
+.grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.grid-2col label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-weight: 500;
+}
+
+input, select {
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.btn-primary { background-color: #007bff; color: white; }
+.btn-secondary { background-color: #6c757d; color: white; }
+.btn-success { background-color: #28a745; color: white; }
+.btn-warning { background-color: #ffc107; color: black; }
+.btn-danger { background-color: #dc3545; color: white; }
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th, .data-table td {
+  border: 1px solid var(--border-color);
+  padding: 12px;
+  text-align: left;
+}
+
+.data-table th {
+  background-color: var(--nav-bg);
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.85em;
+  font-weight: bold;
+  color: white;
+}
+
+.status-badge.running { background-color: #28a745; }
+.status-badge.stopped { background-color: #6c757d; }
+.status-badge.error { background-color: #dc3545; }

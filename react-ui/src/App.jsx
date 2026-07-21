@@ -1,12 +1,21 @@
 import React, { useState, useEffect } from 'react';
+import { Processes } from './components/Processes';
 import { Statistics } from './components/Statistics';
-import { Placeholder } from './components/Placeholder';
+import { Database } from './components/Database';
+import { Settings } from './components/Settings';
+import { Logs } from './components/Logs';
+import { Diagnose } from './components/Diagnose';
+import { Help } from './components/Help';
+import { About } from './components/About';
 import { useTheme } from './hooks/useTheme';
 
-// Роутер на основе хэшей (SPA) п.10.2 ТЗ
 function App() {
     const [route, setRoute] = useState(window.location.hash || '#processes');
     const { theme, toggleTheme } = useTheme();
+
+    // Состояния навигационной панели (п.3 плана)
+    const [isPinned, setIsPinned] = useState(() => localStorage.getItem('venera-nav-pinned') !== 'false');
+    const [isHovered, setIsHovered] = useState(false);
 
     useEffect(() => {
         const onHashChange = () => setRoute(window.location.hash);
@@ -14,38 +23,58 @@ function App() {
         return () => window.removeEventListener('hashchange', onHashChange);
     }, []);
 
+    const togglePin = () => {
+        const nextState = !isPinned;
+        setIsPinned(nextState);
+        localStorage.setItem('venera-nav-pinned', String(nextState));
+    };
+
+    const isExpanded = isPinned || isHovered;
+
     const renderRoute = () => {
         switch (route) {
-            case '#processes':
-                return <Placeholder title="Процессы (п.10.4 ТЗ)" />;
-            case '#statistics':
-                return <Statistics />;
-            case '#db':
-                return <Placeholder title="База Данных (п.10.6 ТЗ)" />;
-            case '#settings':
-                return <Placeholder title="Настройки (п.10.7 ТЗ)" />;
-            case '#logs':
-                return <Placeholder title="Логи (п.10.8 ТЗ)" />;
-            case '#diagnose':
-                return <Placeholder title="Диагностика (п.10.9 ТЗ)" />;
-            default:
-                return <Placeholder title="Процессы (п.10.4 ТЗ)" />;
+            case '#processes': return <Processes />;
+            case '#statistics': return <Statistics />;
+            case '#db': return <Database />;
+            case '#settings': return <Settings />;
+            case '#logs': return <Logs />;
+            case '#diagnose': return <Diagnose />;
+            case '#help': return <Help />;
+            case '#about': return <About />;
+            default: return <Processes />;
         }
+    };
+
+    const navLinkClass = (path) => {
+        const isActive = route === path || (route === '' && path === '#processes');
+        return isActive ? 'active' : '';
     };
 
     return (
         <div className="app-container">
-            <nav>
-                <h2>Venera</h2>
-                <a href="#processes" className={route === '#processes' || route === '' ? 'active' : ''}>Процессы</a>
-                <a href="#statistics" className={route === '#statistics' ? 'active' : ''}>Статистика</a>
-                <a href="#db" className={route === '#db' ? 'active' : ''}>База Данных</a>
-                <a href="#settings" className={route === '#settings' ? 'active' : ''}>Настройки</a>
-                <a href="#logs" className={route === '#logs' ? 'active' : ''}>Логи</a>
-                <a href="#diagnose" className={route === '#diagnose' ? 'active' : ''}>Диагностика</a>
+            <nav 
+                className={isExpanded ? 'expanded' : ''} 
+                onMouseEnter={() => setIsHovered(true)} 
+                onMouseLeave={() => setIsHovered(false)}
+            >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h2>{isExpanded ? 'Venera' : 'V'}</h2>
+                    <button className={`pin-button ${isPinned ? 'pinned' : ''}`} onClick={togglePin} title="Закрепить панель">
+                        📌
+                    </button>
+                </div>
 
-                <button onClick={toggleTheme} className="theme-toggle">
-                    Тема: {theme === 'light' ? 'Светлая' : 'Темная'}
+                <a href="#processes" className={navLinkClass('#processes')}>⚙️ <span>Процессы</span></a>
+                <a href="#statistics" className={navLinkClass('#statistics')}>📊 <span>Статистика</span></a>
+                <a href="#db" className={navLinkClass('#db')}>🗄️ <span>База Данных</span></a>
+                <a href="#settings" className={navLinkClass('#settings')}>🔧 <span>Настройки</span></a>
+                <a href="#logs" className={navLinkClass('#logs')}>📝 <span>Логи</span></a>
+                <a href="#diagnose" className={navLinkClass('#diagnose')}>🩺 <span>Диагностика</span></a>
+                <a href="#help" className={navLinkClass('#help')}>❓ <span>Помощь</span></a>
+                <a href="#about" className={navLinkClass('#about')}>ℹ️ <span>О программе</span></a>
+
+                <button onClick={toggleTheme} className="theme-toggle" style={{ marginTop: 'auto', display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    {theme === 'light' ? '☀️' : '🌙'} <span>{theme === 'light' ? 'Светлая' : 'Темная'}</span>
                 </button>
             </nav>
             <main>
@@ -56,3 +85,4 @@ function App() {
 }
 
 export default App;
+
