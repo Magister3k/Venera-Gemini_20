@@ -8,7 +8,6 @@ import (
 
 	"github.com/getlantern/systray"
 
-	"venera/assets"
 	"venera/config"
 	"venera/logging"
 	"venera/utils"
@@ -34,8 +33,8 @@ func onReady() {
 	systray.SetTooltip("Venera Collector")
 
 	// Установка иконки из модуля assets
-	if len(assets.IconBytes) > 0 {
-		systray.SetIcon(assets.IconBytes)
+	if len(utils.IconBytes) > 0 {
+		systray.SetIcon(utils.IconBytes)
 	} else {
 		logging.Log.Warn("Иконка трея не загружена (assets.IconBytes пуст)")
 	}

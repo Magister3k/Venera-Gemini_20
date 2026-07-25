@@ -1,4 +1,4 @@
-package stress_test
+package test
 
 import (
 	"os"

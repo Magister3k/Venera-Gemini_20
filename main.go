@@ -20,7 +20,6 @@ import (
 	"venera/notify"
 	"venera/processes"
 	"venera/services"
-	"venera/sql"
 	"venera/tray"
 	"venera/web"
 	"venera/utils"
@@ -245,7 +244,7 @@ func handleCLICommands(
 
 	if createPgDB {
 		fmt.Println("Инициализация базы в СУБД PostgreSQL...")
-		err := sql.InitializeDatabase(&cfg.PostgreSQL)
+		err := data.InitializePGDatabase(&cfg.PostgreSQL)
 		if err != nil {
 			fmt.Printf("Ошибка создания базы в СУБД PostgreSQL: %v\n", err)
 			os.Exit(1)
