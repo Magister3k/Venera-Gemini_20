@@ -14,11 +14,10 @@ import (
 // Внедряем чистый SQL-скрипт в бинарник приложения
 //
 //go:embed sql\create_pg_db.sql
-
 var SchemaSQL string
 
-// InitializePGDatabase выполняет команду инициализации итоговой базы данных в СУБД PostgreSQL.
-func InitializePGDatabase(cfg *models.PostgreSQLConfig) error {
+// InitPGDatabase выполняет команду инициализации итоговой базы данных в СУБД PostgreSQL.
+func InitPGDatabase(cfg *models.PostgreSQLConfig) error {
 	ctx := context.Background()
 
 	// Подключаемся к СУБД PostgreSQL, чтобы проверить существование базы

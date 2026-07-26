@@ -15,8 +15,8 @@ var (
 	PgPool *pgxpool.Pool
 )
 
-// InitPostgreSQL инициализирует пул подключений к PostgreSQL
-func InitPostgreSQL() error {
+// InitPgConn инициализирует пул подключений к PostgreSQL
+func InitPgConn() error {
 	cfg := config.GlobalConfig.PostgreSQL
 	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
 		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Database, cfg.SSLMode)
@@ -83,14 +83,14 @@ func InsertBatch(sourceID string, entries []DataEntry) error {
 	return nil
 }
 
-// ClosePostgreSQL закрывает пул подключений
-func ClosePostgreSQL() {
+// ClosePgConn закрывает пул подключений к PostgreSQL
+func ClosePgConn() {
 	if PgPool != nil {
 		PgPool.Close()
 	}
 }
 
-// DataEntry структура для передачи данных в БД
+// DataEntry структура для передачи данных в итоговую БД
 type DataEntry struct {
 	Source    string
 	Key       string

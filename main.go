@@ -33,57 +33,102 @@ var (
 func main() {
 	// Инициализация флагов
 	var (
+		flagMsg       string
 		showHelp      bool
 		showVersion   bool
 		runDiagnose   bool
-		createCacheDB bool
-		removeCacheDB bool
-		createPgDB    bool
+		createCacheDb bool
+		removeCacheDb bool
+		createPgDb    bool
 		installSrv    bool
 		uninstallSrv  bool
 	)
 
 	// Отображение справки
-	flag.BoolVar(&showHelp, "help", false, "Отображение списка параметров командной строки")
-	flag.BoolVar(&showHelp, "h", false, "Отображение списка параметров командной строки")
+	flagMsg = "Отображение списка параметров командной строки"
+	flag.BoolVar(&showHelp, "help", false, flagMsg)
+	flag.BoolVar(&showHelp, "h", false, flagMsg)
 
 	// Отображение версии программы
-	flag.BoolVar(&showVersion, "version", false, "Отображение версии программы")
-	flag.BoolVar(&showVersion, "v", false, "Отображение версии программы")
+	flagMsg = "Отображение версии программы"
+	flag.BoolVar(&showVersion, "version", false, flagMsg)
+	flag.BoolVar(&showVersion, "v", false, flagMsg)
 
 	// Запуск диагностики
-	flag.BoolVar(&runDiagnose, "diagnose", false, "Запуск диагностики")
-	flag.BoolVar(&runDiagnose, "d", false, "Запуск диагностики")
+	flagMsg = "Запуск диагностики"
+	flag.BoolVar(&runDiagnose, "diagnose", false, flagMsg)
+	flag.BoolVar(&runDiagnose, "d", false, flagMsg)
 
-	// Создание контейнера кэшируюшей СУБД
-	flag.BoolVar(&createCacheDB, "create_cachedb", false, "Создание контейнера кэшируюшей СУБД")
-	flag.BoolVar(&createCacheDB, "c", false, "Создание контейнера кэшируюшей СУБД")
+	// Создание контейнера с кэширующей СУБД
+	flagMsg = "Создание контейнера с кэширующей СУБД"
+	flag.BoolVar(&createCacheDb, "create-cacheDb", false, flagMsg)
+	flag.BoolVar(&createCacheDb, "c", false, flagMsg)
 
-	// Удаление контейнера кэшируюшей СУБД
-	flag.BoolVar(&removeCacheDB, "remove_cachedb", false, "Удаление контейнера кэшируюшей СУБД")
-	flag.BoolVar(&removeCacheDB, "r", false, "Удаление контейнера кэшируюшей СУБД")
+	// Удаление контейнера с кэширующей СУБД
+	flagMsg = "Удаление контейнера с кэширующей СУБД"
+	flag.BoolVar(&removeCacheDb, "remove-cacheDb", false, flagMsg)
+	flag.BoolVar(&removeCacheDb, "r", false, flagMsg)
 
 	// Создание базы в СУБД PostgreSQL
-	flag.BoolVar(&createPgDB, "create_pg_db", false, "Создание базы в СУБД PostgreSQL")
-	flag.BoolVar(&createPgDB, "p", false, "Создание базы в СУБД PostgreSQL")
+	flagMsg = "Создание базы в СУБД PostgreSQL"
+	flag.BoolVar(&createPgDb, "create-pg-db", false, flagMsg)
+	flag.BoolVar(&createPgDb, "p", false, flagMsg)
 
 	// Установка службы Windows
-	flag.BoolVar(&installSrv, "install_srv", false, "Установка службы Windows")
-	flag.BoolVar(&installSrv, "i", false, "Установка службы Windows")
+	flagMsg = "Установка службы Windows"
+	flag.BoolVar(&installSrv, "install-srv", false, flagMsg)
+	flag.BoolVar(&installSrv, "i", false, flagMsg)
 
 	// Удаление службы Windows
-	flag.BoolVar(&uninstallSrv, "uninstall_srv", false, "Удаление службы Windows")
-	flag.BoolVar(&uninstallSrv, "u", false, "Удаление службы Windows")
+	flagMsg = "Удаление службы Windows"
+	flag.BoolVar(&uninstallSrv, "uninstall-srv", false, flagMsg)
+	flag.BoolVar(&uninstallSrv, "u", false, flagMsg)
+
+	// Настройка вывода справки
+	hlpStr := "Venera — Система сбора идентификаторов в потоке пакетных данных\n\n" +
+		"Использование:\n" +
+		"  venera.exe [опция]\n\n" +
+		"Опции:\n"	
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, hlpStr)
+
+		// Карта для группировки флагов по их описанию (Usage)
+		groupedFlags := make(map[string][]string)
+		
+		// Перебираем все зарегистрированные флаги
+		flag.VisitAll(func(f *flag.Flag) {
+			groupedFlags[f.Usage] = append(groupedFlags[f.Usage], f.Name)
+		})
+
+		// Выводим сгруппированные флаги
+		for usage, names := range groupedFlags {
+			// Формируем строку флагов: добавляем дефисы и соединяем через запятую
+			var formattedNames []string
+			for _, name := range names {
+				if len(name) == 1 {
+					formattedNames = append(formattedNames, "-"+name) // Короткий флаг
+				} else {
+					formattedNames = append(formattedNames, "--"+name) // Длинный флаг
+				}
+			}
+			
+			// Соединяем флаги через запятую
+			flagsString := strings.Join(formattedNames, ", ")
+			
+			// Печатаем в консоль с красивым выравниванием (\t — табуляция)
+			fmt.Fprintf(os.Stderr, "  %-25s %s\n", flagsString, usage)
+		}
+	}
 
 	flag.Parse()
 
 	if showHelp {
-		printHelp()
+		flag.Usage()
 		os.Exit(0)
 	}
 
 	if showVersion {
-		fmt.Printf("Venera Version: %s\n", version)
+		fmt.Printf("Venera версия %s\n", version)
 		os.Exit(0)
 	}
 
@@ -106,7 +151,7 @@ func main() {
 
 	// Обработка CLI команд управления
 	handleCLICommands(
-		runDiagnose, createCacheDB, removeCacheDB, createPgDB,
+		runDiagnose, createCacheDb, removeCacheDb, createPgDb,
 		installSrv, uninstallSrv, cfg,
 	)
 
@@ -118,7 +163,7 @@ func main() {
 
 	// Проверка наличия и запуск Podman
 	// В рамках основной логики запускаем кэш БД
-	setupDragonflyContainer(cfg.Paths)
+	setupCacheDbContainer(cfg.Paths)
 
 	// Загрузка списков
 	_ = data.LoadFilters(cfg.Paths.FilterList)
@@ -149,12 +194,13 @@ func main() {
 
 func startApplication() {
 	// Подключение к кэширующей СУБД
-	if err := data.InitDragonflyDB(); err != nil {
+	if err := data.InitCacheDbConn(); err != nil {
 		logging.Log.Errorf("Ошибка подключения к кэширующей СУБД: %v", err)
 		tray.ShowErrorNotification("Нет связи с кэширующей СУБД")
 	}
 
-	if err := data.InitPostgreSQL(); err != nil {
+	// Подключение к итоговой СУБД
+	if err := data.InitPgConn(); err != nil {
 		logging.Log.Errorf("Ошибка подключения к СУБД PostgreSQL: %v", err)
 		tray.ShowErrorNotification("Нет связи с СУБД PostgreSQL")
 	}
@@ -200,14 +246,14 @@ func stopAllProcesses() {
 func stopApplication() {
 	web.StopWebServer()
 	stopAllProcesses()
-	data.CloseDragonflyDB()
-	data.ClosePostgreSQL()
+	data.CloseCacheDbConn()
+	data.ClosePgConn()
 	logging.Log.Infof("Venera успешно остановлена.")
 }
 
 // handleCLICommands обрабатывает эксклюзивные CLI команды
 func handleCLICommands(
-	runDiagnose, createCacheDB, removeCacheDB, createPgDB,
+	runDiagnose, createCacheDb, removeCacheDb, createPgDb,
 	installSrv, uninstallSrv bool, cfg models.Config) {
 
 	if runDiagnose {
@@ -230,21 +276,21 @@ func handleCLICommands(
 		os.Exit(0)
 	}
 
-	if createCacheDB {
+	if createCacheDb {
 		setupDragonflyContainer(cfg.Paths)
 		fmt.Println("Контейнер кэширующей СУБД успешно проверен/создан.")
 		os.Exit(0)
 	}
 
-	if removeCacheDB {
+	if removeCacheDb {
 		fmt.Println("Удаление контейнера кэширующей СУБД...")
-		_ = exec.Command(cfg.Paths.PodmanExe, "rm", "-f", "cachedb").Run()
+		_ = exec.Command(cfg.Paths.PodmanExe, "rm", "-f", "CacheDb").Run()
 		os.Exit(0)
 	}
 
-	if createPgDB {
+	if createPgDb {
 		fmt.Println("Инициализация базы в СУБД PostgreSQL...")
-		err := data.InitializePGDatabase(&cfg.PostgreSQL)
+		err := data.InitPGDatabase(&cfg.PostgreSQL)
 		if err != nil {
 			fmt.Printf("Ошибка создания базы в СУБД PostgreSQL: %v\n", err)
 			os.Exit(1)
@@ -270,38 +316,40 @@ func handleCLICommands(
 	}
 }
 
-// setupDragonflyContainer проверяет и поднимает контейнер с еэширующей СУБД
-func setupDragonflyContainer(paths models.PathsConfig) {
+// setupCacheDbContainer проверяет и поднимает контейнер с кэширующей СУБД
+func setupCacheDbContainer(paths models.PathsConfig) {
 	podman := paths.PodmanExe
 
 	// Проверка наличия podman
-	if _, err := exec.LookPath(podman); err != nil {
-		logging.Log.Warnf("Podman не найден по пути: %s", podman)
+ 	if _, err := exec.LookPath(podman); err != nil {
+ 		logging.Log.Warnf("Podman не найден по пути: %s", podman)
+ 		tray.ShowErrorNotification("Ошибка запуска кэширующей СУБД")
+		return
+ 	}
+
+	// Запуск podman machine (если требуется на Windows)
+	if _, err := exec.Command(podman, "machine", "start").Run(); err != nil {
+		logging.Log.Errorf("Ошибка запуска Podman: %v", err)
+		tray.ShowErrorNotification("Ошибка запуска кэширующей СУБД")
 		return
 	}
 
-	// Запуск podman machine (если требуется на Windows)
-	_ = exec.Command(podman, "machine", "start").Run()
-
-	// Проверка наличия контейнера cachedb
+	// Проверка наличия контейнера CacheDb
 	out, _ := exec.Command(podman, "ps", "-a", "--format", "{{.Names}}").Output()
 	if !strings.Contains(string(out), "cachedb") {
-		logging.Log.Infof("Контейнер cachedb не найден. Создание из образа %s...", paths.DbImage)
+		logging.Log.Warnf("Контейнер cachedb не найден")
+		logging.Log.Infof("Создание контейнера cachedb из образа %s...", paths.DbImage)
+		err := exec.Command("podman", "load", "-i", paths.DbImage).Run()
 		err := exec.Command(podman, "run", "-d", "--name", "cachedb", "-p", "6379:6379", paths.DbImage).Run()
 		if err != nil {
 			logging.Log.Errorf("Ошибка создания контейнера: %v", err)
-			tray.ShowErrorNotification("Ошибка создания БД DragonflyDB")
+			tray.ShowErrorNotification("Ошибка запуска кэширующей СУБД")
 		}
 	} else {
 		// Запуск контейнера
-		_ = exec.Command(podman, "start", "cachedb").Run()
+		if _, err := exec.Command(podman, "start", "cachedb").Run(); err != nil {
+			logging.Log.Errorf("Ошибка запуска контейнера: %v", err)
+			tray.ShowErrorNotification("Ошибка запуска кэширующей СУБД")
+		}
 	}
-}
-
-func printHelp() {
-	fmt.Println("Venera — Система сбора идентификаторов в потоке пакетных данных")
-	fmt.Println("\nИспользование:")
-	fmt.Println("  venera.exe [опция]")
-	fmt.Println("\nОпции:")
-	flag.PrintDefaults()
 }
