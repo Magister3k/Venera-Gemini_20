@@ -14,6 +14,7 @@ require (
 	github.com/signintech/gopdf v0.36.2
 	github.com/sirupsen/logrus v1.9.4
 	github.com/valyala/fastjson v1.6.10
+	github.com/xuri/excelize/v2 v2.11.0
 	golang.org/x/sys v0.47.0
 )
 
@@ -52,7 +53,6 @@ require (
 	github.com/valyala/fasthttp v1.51.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
 	github.com/xuri/efp v0.0.1 // indirect
-	github.com/xuri/excelize/v2 v2.11.0 // indirect
 	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel v1.44.0 // indirect

@@ -9,13 +9,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"venera/config"
 	"venera/logging"
+	"venera/models"
 )
 
 var (
 	PgPool *pgxpool.Pool
 )
 
-// InitPgConn инициализирует пул подключений к PostgreSQL
+// InitPgConn инициализирует пул подключений к базе в СУБД PostgreSQL
 func InitPgConn() error {
 	cfg := config.GlobalConfig.PostgreSQL
 	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
@@ -23,7 +24,7 @@ func InitPgConn() error {
 
 	poolConfig, err := pgxpool.ParseConfig(connString)
 	if err != nil {
-		return fmt.Errorf("ошибка парсинга строки подключения к PostgreSQL: %v", err)
+		return fmt.Errorf("ошибка парсинга строки подключения к базе в СУБД PostgreSQL: %v", err)
 	}
 
 	delay := 1 * time.Second
@@ -32,12 +33,12 @@ func InitPgConn() error {
 		if err == nil {
 			err = PgPool.Ping(context.Background())
 			if err == nil {
-				logging.Log.Infof("Успешное подключение к PostgreSQL по адресу %s:%d", cfg.Host, cfg.Port)
+				logging.Log.Infof("Успешное подключение к базе в СУБД PostgreSQL по адресу %s:%d", cfg.Host, cfg.Port)
 				return nil
 			}
 		}
 
-		logging.Log.Warnf("Ошибка подключения к PostgreSQL (попытка %d/5): %v", i+1, err)
+		logging.Log.Warnf("Ошибка подключения к базе в СУБД PostgreSQL (попытка %d/5): %v", i+1, err)
 		if PgPool != nil {
 			PgPool.Close()
 		}
@@ -45,7 +46,7 @@ func InitPgConn() error {
 		delay *= 2
 	}
 
-	return fmt.Errorf("не удалось подключиться к PostgreSQL после 5 попыток: %w", err)
+	return fmt.Errorf("не удалось подключиться к базе в СУБД PostgreSQL после 5 попыток: %w", err)
 }
 
 // InsertBatch выполняет пакетную вставку или обновление данных в PostgreSQL
@@ -83,17 +84,9 @@ func InsertBatch(sourceID string, entries []DataEntry) error {
 	return nil
 }
 
-// ClosePgConn закрывает пул подключений к PostgreSQL
+// ClosePgConn закрывает пул подключений к базе в СУБД PostgreSQL
 func ClosePgConn() {
 	if PgPool != nil {
 		PgPool.Close()
 	}
-}
-
-// DataEntry структура для передачи данных в итоговую БД
-type DataEntry struct {
-	Source    string
-	Key       string
-	Value     string
-	Timestamp int64
 }

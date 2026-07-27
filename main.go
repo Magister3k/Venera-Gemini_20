@@ -21,8 +21,8 @@ import (
 	"venera/processes"
 	"venera/services"
 	"venera/tray"
-	"venera/web"
 	"venera/utils"
+	"venera/web"
 )
 
 var (
@@ -33,7 +33,6 @@ var (
 func main() {
 	// Инициализация флагов
 	var (
-		flagMsg       string
 		showHelp      bool
 		showVersion   bool
 		runDiagnose   bool
@@ -45,42 +44,42 @@ func main() {
 	)
 
 	// Отображение справки
-	flagMsg = "Отображение списка параметров командной строки"
+	flagMsg := "Отображение списка параметров командной строки"
 	flag.BoolVar(&showHelp, "help", false, flagMsg)
 	flag.BoolVar(&showHelp, "h", false, flagMsg)
 
 	// Отображение версии программы
-	flagMsg = "Отображение версии программы"
+	flagMsg := "Отображение версии программы"
 	flag.BoolVar(&showVersion, "version", false, flagMsg)
 	flag.BoolVar(&showVersion, "v", false, flagMsg)
 
 	// Запуск диагностики
-	flagMsg = "Запуск диагностики"
+	flagMsg := "Запуск диагностики"
 	flag.BoolVar(&runDiagnose, "diagnose", false, flagMsg)
 	flag.BoolVar(&runDiagnose, "d", false, flagMsg)
 
 	// Создание контейнера с кэширующей СУБД
-	flagMsg = "Создание контейнера с кэширующей СУБД"
+	flagMsg := "Создание контейнера с кэширующей СУБД"
 	flag.BoolVar(&createCacheDb, "create-cacheDb", false, flagMsg)
 	flag.BoolVar(&createCacheDb, "c", false, flagMsg)
 
 	// Удаление контейнера с кэширующей СУБД
-	flagMsg = "Удаление контейнера с кэширующей СУБД"
+	flagMsg := "Удаление контейнера с кэширующей СУБД"
 	flag.BoolVar(&removeCacheDb, "remove-cacheDb", false, flagMsg)
 	flag.BoolVar(&removeCacheDb, "r", false, flagMsg)
 
 	// Создание базы в СУБД PostgreSQL
-	flagMsg = "Создание базы в СУБД PostgreSQL"
+	flagMsg := "Создание базы в СУБД PostgreSQL"
 	flag.BoolVar(&createPgDb, "create-pg-db", false, flagMsg)
 	flag.BoolVar(&createPgDb, "p", false, flagMsg)
 
 	// Установка службы Windows
-	flagMsg = "Установка службы Windows"
+	flagMsg := "Установка службы Windows"
 	flag.BoolVar(&installSrv, "install-srv", false, flagMsg)
 	flag.BoolVar(&installSrv, "i", false, flagMsg)
 
 	// Удаление службы Windows
-	flagMsg = "Удаление службы Windows"
+	flagMsg := "Удаление службы Windows"
 	flag.BoolVar(&uninstallSrv, "uninstall-srv", false, flagMsg)
 	flag.BoolVar(&uninstallSrv, "u", false, flagMsg)
 
@@ -94,12 +93,10 @@ func main() {
 
 		// Карта для группировки флагов по их описанию (Usage)
 		groupedFlags := make(map[string][]string)
-		
 		// Перебираем все зарегистрированные флаги
 		flag.VisitAll(func(f *flag.Flag) {
 			groupedFlags[f.Usage] = append(groupedFlags[f.Usage], f.Name)
 		})
-
 		// Выводим сгруппированные флаги
 		for usage, names := range groupedFlags {
 			// Формируем строку флагов: добавляем дефисы и соединяем через запятую
@@ -277,14 +274,14 @@ func handleCLICommands(
 	}
 
 	if createCacheDb {
-		setupDragonflyContainer(cfg.Paths)
-		fmt.Println("Контейнер кэширующей СУБД успешно проверен/создан.")
+		fmt.Println("Создание контейнера кэширующей СУБД...")
+		utils.setupCacheDbContainer(cfg.Paths)
 		os.Exit(0)
 	}
 
 	if removeCacheDb {
 		fmt.Println("Удаление контейнера кэширующей СУБД...")
-		_ = exec.Command(cfg.Paths.PodmanExe, "rm", "-f", "CacheDb").Run()
+		_ = exec.Command(cfg.Paths.PodmanExe, "rm", "-f", "cachedb").Run()
 		os.Exit(0)
 	}
 
@@ -313,43 +310,5 @@ func handleCLICommands(
 			os.Exit(1)
 		}
 		os.Exit(0)
-	}
-}
-
-// setupCacheDbContainer проверяет и поднимает контейнер с кэширующей СУБД
-func setupCacheDbContainer(paths models.PathsConfig) {
-	podman := paths.PodmanExe
-
-	// Проверка наличия podman
- 	if _, err := exec.LookPath(podman); err != nil {
- 		logging.Log.Warnf("Podman не найден по пути: %s", podman)
- 		tray.ShowErrorNotification("Ошибка запуска кэширующей СУБД")
-		return
- 	}
-
-	// Запуск podman machine (если требуется на Windows)
-	if _, err := exec.Command(podman, "machine", "start").Run(); err != nil {
-		logging.Log.Errorf("Ошибка запуска Podman: %v", err)
-		tray.ShowErrorNotification("Ошибка запуска кэширующей СУБД")
-		return
-	}
-
-	// Проверка наличия контейнера CacheDb
-	out, _ := exec.Command(podman, "ps", "-a", "--format", "{{.Names}}").Output()
-	if !strings.Contains(string(out), "cachedb") {
-		logging.Log.Warnf("Контейнер cachedb не найден")
-		logging.Log.Infof("Создание контейнера cachedb из образа %s...", paths.DbImage)
-		err := exec.Command("podman", "load", "-i", paths.DbImage).Run()
-		err := exec.Command(podman, "run", "-d", "--name", "cachedb", "-p", "6379:6379", paths.DbImage).Run()
-		if err != nil {
-			logging.Log.Errorf("Ошибка создания контейнера: %v", err)
-			tray.ShowErrorNotification("Ошибка запуска кэширующей СУБД")
-		}
-	} else {
-		// Запуск контейнера
-		if _, err := exec.Command(podman, "start", "cachedb").Run(); err != nil {
-			logging.Log.Errorf("Ошибка запуска контейнера: %v", err)
-			tray.ShowErrorNotification("Ошибка запуска кэширующей СУБД")
-		}
 	}
 }

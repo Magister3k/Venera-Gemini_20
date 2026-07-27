@@ -2,21 +2,17 @@ package data
 
 import (
 	"context"
-	_ "embed"
 	"fmt"
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"venera/assets"
 	"venera/logging"
 	"venera/models"
 )
 
-// Внедряем чистый SQL-скрипт в бинарник приложения
-//
-//go:embed sql\create_pg_db.sql
-var SchemaSQL string
-
-// InitPGDatabase выполняет команду инициализации итоговой базы данных в СУБД PostgreSQL.
+// InitPGDatabase выполняет команду инициализации итоговой базы в СУБД PostgreSQL.
 func InitPGDatabase(cfg *models.PostgreSQLConfig) error {
 	ctx := context.Background()
 
@@ -65,7 +61,7 @@ func InitPGDatabase(cfg *models.PostgreSQLConfig) error {
 	defer targetPool.Close()
 
 	// Выполняем SQL-скрипт создания базы данных
-	_, err = targetPool.Exec(ctx, SchemaSQL)
+	_, err = targetPool.Exec(ctx, assets.SchemaSQL)
 	if err != nil {
 		return fmt.Errorf("ошибка применения шаблона SQL-скрипта: %v", err)
 	}

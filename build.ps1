@@ -38,7 +38,7 @@ try {
     # Если go-winres установлен, он соберет rsrc.syso
     go-winres make
 } catch {
-    Write-Warning "Утилита go-winres не найдена. Установите 'go install github.com/tc-hib/go-winres@latest' для внедрения иконки."
+    Write-Warning "Утилита go-winres не найдена. Выполните 'go install github.com/tc-hib/go-winres@latest' для установки."
 }
 
 # 5. Сборка исполняемого файла
