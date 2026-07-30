@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<zabbix_export>
+    <version>6.0</version>
+    <templates>
+        <template>
+            <template>Venera Monitoring</template>
+            <name>Venera — Система анализа данных</name>
+            <description>
+                Шаблон для мониторинга Venera.
+                Поддерживает:
+                - Системные метрики (RAM, CPU, диск)
+                - Метрики баз данных (DragonFlyDB, PostgreSQL)
+                - Сетевую активность
+                - Автообнаружение процессов
+                - Триггеры и графики
+            </description>
+            <groups>
+                <group>
+                    <name>Templates</name>
+                </group>
+            </groups>
+
+            <!-- Параметры агента -->
+            <items>
+                <!-- Системные метрики -->
+                <item>
+                    <name>Свободная RAM (MB)</name>
+                    <key>venera[ram_free_mb]</key>
+                    <type>0</type>
+                    <value_type>3</value_type>
+                    <delay>30s</delay>
+                    <units>MB</units>
+                    <description>Свободная оперативная память</description>
+                </item>
+                <item>
+                    <name>Загрузка CPU (%)</name>
+                    <key>venera[cpu_percent]</key>
+                    <type>0</type>
+                    <value_type>0</value_type>
+                    <delay>30s</delay>
+                    <units>%</units>
+                </item>
+                <item>
+                    <name>Свободно на диске (GB)</name>
+                    <key>venera[disk_free_gb]</key>
+                    <type>0</type>
+                    <value_type>0</value_type>
+                    <delay>1m</delay>
+                    <units>GB</units>
+                </item>
+
+                <!-- Базы данных -->
+                <item>
+                    <name>Размер DragonFlyDB (MB)</name>
+                    <key>venera[dragonfly_size_mb]</key>
+                    <type>0</type>
+                    <value_type>3</value_type>
+                    <delay>1m</delay>
+                    <units>MB</units>
+                </item>
+                <item>
+                    <name>Количество строк в PostgreSQL</name>
+                    <key>venera[pg_rows]</key>
+                    <type>0</type>
+                    <value_type>3</value_type>
+                    <delay>1m</delay>
+                </item>
+                <item>
+                    <name>Размер PostgreSQL (MB)</name>
+                    <key>venera[pg_size_mb]</key>
+                    <type>0</type>
+                    <value_type>0</value_type>
+                    <delay>1m</delay>
+                    <units>MB</units>
+                </item>
+                <item>
+                    <name>Свободно на диске PG (GB)</name>
+                    <key>venera[pg_disk_free_gb]</key>
+                    <type>0</type>
+                    <value_type>0</value_type>
+                    <delay>1m</delay>
+                    <units>GB</units>
+                </item>
+
+                <!-- Сеть -->
+                <item>
+                    <name>Скорость входящих данных (KB/s)</name>
+                    <key>venera[input_speed_kbps]</key>
+                    <type>0</type>
+                    <value_type>0</value_type>
+                    <delay>30s</delay>
+                    <units>KB/s</units>
+                </item>
+                <item>
+                    <name>Пакетов в секунду</name>
+                    <key>venera[packets_per_sec]</key>
+                    <type>0</type>
+                    <value_type>0</value_type>
+                    <delay>30s</delay>
+                    <units>pps</units>
+                </item>
+
+                <!-- Процессы -->
+                <item>
+                    <name>Всего процессов</name>
+                    <key>venera[process_count]</key>
+                    <type>0</type>
+                    <value_type>3</value_type>
+                    <delay>30s</delay>
+                </item>
+                <item>
+                    <name>Запущенных процессов</name>
+                    <key>venera[running_count]</key>
+                    <type>0</type>
+                    <value_type>3</value_type>
+                    <delay>30s</delay>
+                </item>
+
+                <!-- LLD: Обнаружение процессов -->
+                <item>
+                    <name>Обнаружение процессов Venera</name>
+                    <key>venera.discovery.processes</key>
+                    <type>0</type>
+                    <value_type>4</value_type>
+                    <delay>1m</delay>
+                    <description>Автообнаружение всех процессов Venera</description>
+                </item>
+            </items>
+
+            <!-- Автообнаружение процессов -->
+            <discovery_rules>
+                <discovery_rule>
+                    <name>Процессы Venera</name>
+                    <key>venera.discovery.processes</key>
+                    <delay>1m</delay>
+                    <item_prototypes>
+                        <item_prototype>
+                            <name>Статус процесса {#PROCESS_NAME}</name>
+                            <key>venera[process_status,"{#PROCESS_ID}"]</key>
+                            <type>0</type>
+                            <value_type>3</value_type>
+                            <delay>30s</delay>
+                            <applications>
+                                <application>
+                                    <name>Процессы</name>
+                                </application>
+                            </applications>
+                        </item_prototype>
+                    </item_prototypes>
+                    <trigger_prototypes>
+                        <trigger_prototype>
+                            <expression>{#TEMPLATE:venera[process_status,"{#PROCESS_ID}"].last()}=0</expression>
+                            <name>Процесс {#PROCESS_NAME} остановлен</name>
+                            <priority>4</priority>
+                            <description>Процесс перестал работать</description>
+                        </trigger_prototype>
+                    </trigger_prototypes>
+                </discovery_rule>
+            </discovery_rules>
+
+            <!-- Триггеры -->
+            <triggers>
+                <trigger>
+                    <expression>{Venera Monitoring:venera[ram_free_mb].last()}&lt;512</expression>
+                    <name>Критически мало RAM (менее 512 МБ)</name>
+                    <priority>5</priority>
+                    <description>Системе не хватает памяти. Возможна остановка процессов.</description>
+                </trigger>
+                <trigger>
+                    <expression>{Venera Monitoring:venera[pg_disk_free_gb].last()}&lt;10</expression>
+                    <name>На диске с PostgreSQL менее 10 ГБ</name>
+                    <priority>4</priority>
+                </trigger>
+                <trigger>
+                    <expression>{Venera Monitoring:venera[cpu_percent].avg(5m)}>90</expression>
+                    <name>Высокая загрузка CPU (>90% в среднем за 5 мин)</name>
+                    <priority>3</priority>
+                </trigger>
+            </triggers>
+
+            <!-- Графики -->
+            <graphs>
+                <graph>
+                    <name>Потребление RAM</name>
+                    <graph_items>
+                        <graph_item>
+                            <sortorder>0</sortorder>
+                            <color>1A7C11</color>
+                            <item>
+                                <host>Venera Monitoring</host>
+                                <key>venera[ram_free_mb]</key>
+                            </item>
+                        </graph_item>
+                    </graph_items>
+                </graph>
+                <graph>
+                    <name>Скорость входящих данных</name>
+                    <graph_items>
+                        <graph_item>
+                            <sortorder>0</sortorder>
+                            <color>F63100</color>
+                            <item>
+                                <host>Venera Monitoring</host>
+                                <key>venera[input_speed_kbps]</key>
+                            </item>
+                        </graph_item>
+                    </graph_items>
+                </graph>
+                <graph>
+                    <name>Размер баз данных</name>
+                    <graph_items>
+                        <graph_item>
+                            <sortorder>0</sortorder>
+                            <color>2774A4</color>
+                            <item>
+                                <host>Venera Monitoring</host>
+                                <key>venera[dragonfly_size_mb]</key>
+                            </item>
+                        </graph_item>
+                        <graph_item>
+                            <sortorder>1</sortorder>
+                            <color>A54F10</color>
+                            <item>
+                                <host>Venera Monitoring</host>
+                                <key>venera[pg_size_mb]</key>
+                            </item>
+                        </graph_item>
+                    </graph_items>
+                </graph>
+            </graphs>
+
+            <!-- Приложения -->
+            <applications>
+                <application>
+                    <name>Система</name>
+                </application>
+                <application>
+                    <name>Базы данных</name>
+                </application>
+                <application>
+                    <name>Сеть</name>
+                </application>
+                <application>
+                    <name>Процессы</name>
+                </application>
+            </applications>
+        </template>
+    </templates>
+</zabbix_export>

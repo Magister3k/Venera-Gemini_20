@@ -1,45 +1,51 @@
 ﻿Venera
-	assets\
-		image.ico
-	callbacks\
-		callbacks.go
-	config\
-		cfg_loader.go
-	data\
-		dragonfly.go
-		filter.go
-		parser.go
-		postgres.go
-		select.go
-	diagnose\
-		diagnose.go
-	logging\
-		file_logger.go
-		logger.go
-		trail.go
-		tray.go
-	manifest\
-		register.go
-	metrics\
-		collector.go
-		database.go
-		export.go
-		monitor.go
-		network.go
-		process.go
-		system.go
-		zabbix.go
-	models\
-		model_data.go
-		model_process.go
-	notify\
-		alerts.go
-		notify.go
-	processes\
-		procs_loader.go
-		manager.go
-		tshark.go
-	react-ui\
+	assets\						//Ресурсы проекта
+		assets.go					//Внедрение ресурсов в код проекта
+		resources\					//Файлы ресурсов
+			image.ico					//Иконка проекта
+	callbacks\					//Модуль работы с функциями callback
+		callbacks.go					//Функции callback
+	config\						//Модуль работы с файлом конфигурации
+		cfg_loader.go					//Загрузка файла конфигурации
+	containers\					//Модуль работы с контейнерами
+		cont_cachedb.go					//Работа с контейнером кэширующей СУБД
+		podman.go					//Работа с приложением Podman
+	data\						//Модуль работы с данными
+		cachedb.go					//Работа с кэширующей СУБД
+		filter.go					//Работа со списком фильтрации данных
+		init_db.go					//Создание итоговой БД
+		parser.go					//Парсинг JSON-сообщений
+		postgres.go					//Работа с итоговой БД в PostgreSQL
+		select.go					//Работа со списком отбора
+	diagnose\					//Модуль диагностики
+		diagnose.go					//Диагностика системы
+	logging\					//Модуль логирования
+		hook_eventlog.go				//Отправка критических ошибок в Windows Event Log
+		hub.go						//Трансляция логов в веб-интерфейс
+		logger.go					//Организация централизованного логирования
+		rotation.go					//Ротация файлов логов
+	manifest\					//Модуль работы с манифестом
+		manifest.go					//Работа с манифестом
+	metrics\					//Модуль сбора метрик
+		collector.go					//Сбор всех метрик для передачи на фронтенд
+		database.go					//Сбор метрик БД
+		monitor.go					//Мониторинг системных порогов
+		process.go					//Сбор метрик процессов
+		system.go					//Сбор системных метрик 
+		zabbix.go					//Предоставление метрик для сбора Zabbix
+	models\						//Модуль с моделями проекта
+		model_alert.go					//Модель алертов
+		model_config.go					//Модель конфигурации
+		model_data.go					//Модель данных
+		model_metrics.go				//Модель метрик
+		model_process.go				//Модель процессов
+	notify\						//Модуль уведомлений
+		alerts.go					//Работа с алертами
+	processes\					//Модуль работы с процессами
+		manager.go					//Управление процессами
+		procs_loader.go					//Загрузка параметров текущих процессов из файла
+		tshark.go					//Работа с Tshark
+	react-ui\					//Веб-интерфейс React UI
 		dst\
 		public\
 		src\
@@ -47,39 +53,47 @@
 			components\
 			hooks\
 			libs\
-	sql\
-		create_pg_db.sql
-	scripts\
-		create_cachedb.ps1
-		diagnose-gui.ps1
-		diagnose.ps1
-		remove_cachedb.ps1
-	services\
-		icon.go
-		win_service.go
-	tests\
-		e2e\
-		integration\
-		perfomance\
-		stress\
-		unit\
-	tray\
-		tray.go
-	settings\
-		generic.alr
-		generic.ctr
-		generic.flt
-	utils\
-		id.go
-		scanner.go
-	web\
+	scripts\					//Скрипты для PowerShall
+		create_cachedb.ps1				//Создание контейнера кэширующей СУБД
+		diagnose-gui.ps1				//Диагностика проекта с GUI-интерфейсом
+		diagnose.ps1					//Диагностика проекта
+		remove_cachedb.ps1				//Удаление контейнера кэширующей СУБД
+	services\					//Модуль работы со службой Windows 
+		win_service.go					//Работа со службой Windows
+	settings\					//Настройки проекта
+		generic.alr					//Файл алертов
+		generic.ctr					//Файл списка значений на контроле
+		generic.flt					//Файл списка фильтрации данных
+	sql\						//SQL-шаблоны
+		create_db.sql					//SQL-шаблон для создания итоговой БД
+	tests\						//Модуль тестирования
+		e2e\						//Сквозные тесты
+		integration\					//Интеграционные тесты
+		perfomance\					//Тесты производительности
+		stress\						//Тесты на отказоустойчивость
+		unit\						//Тесты отдельных модулей
+	tray\						//Модуль работы с системным треем
+		tray.go						//Работа с системным треем
+	utils\						//Модуль утилит
+		admin.go					//Проверка прав Администратора
+		console.go					//Скрытие окна консоли
+		id.go						//Генерация уникального ID
+		notification.go					//Отображение системного всплывающего уведомления Windows
+		scanner.go					//Получение списка файлов в указанной директории
+	web\						//Веб-интерфейс
 		static\
+			about\
+				about.html
+				about.js
 			db\
 				db.html
 				db.js
 			diagnose\
 				diagnose.html
 				diagnose.js
+			help\
+				help.html
+				help.js
 			libs\
 				jquery.min.js
 				socket.io.min.js
@@ -98,15 +112,18 @@
 			index.html
 			main.js
 			style.css
-		handlers.go
-		server.go
-		websocket.go
-	build.ps1
-	config.toml
-	install_venera.ps1
-	main.go
-	makefile
-	manifest.xml
-	processes.toml
-	ReadMe.md
-	uninstall_venera.ps1
+		handlers.go					//Работа с REST API
+		server.go					//Запуск и остановка веб-сервера
+		websocket.go					//Работа с WebSocket
+	build.ps1						//Скрипт сборки проекта для PowerShell
+	build.sh						//Скрипт сборки проекта для среды bash
+	config.toml						//Файл конфигурации
+	create_installer.ps1					//Скрипт для упаковки проекта в инсталляционный пакет
+	docker-compose.yml					//Шаблон для упаковки проекта в контейнер
+	Dockerfile						//Скрипт упаковки проекта в контейнер
+	installer.iss						//Шаблон для упаковки проекта в инсталляционный пакет
+	main.go							//Основной файл проекта
+	manifest.xml						//Файл манифеста
+	processes.toml						//Файл параметров текущих процессов
+	ReadMe.md						//Документация проекта
+	zabbix_template.xml					//Шаблон для подключения проекта к Zabbix

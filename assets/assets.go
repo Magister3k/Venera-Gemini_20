@@ -10,5 +10,5 @@ var IconBytes []byte
 
 // Внедряем SQL-скрипт создания базы в СУБД PostgreSQL
 //
-//go:embed resources/create_pg_db.sql
+//go:embed resources/create_db.sql
 var SchemaSQL string

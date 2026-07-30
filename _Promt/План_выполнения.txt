@@ -1,13 +1,12 @@
 ﻿1) main, manifest, config, callbacks
-2) models, data, processes
-3) services, tray, utils
+2) models, data, processes, containers
+3) services, tray, utils, assets
 4) logging, metrics, notify
-5) diagnose
-6) web-интерфейс
-7) react-ui
-8) tests
-9) ps-скрипты и sql-шаблон
-10) проверка всех модулей
-11) оптимизация кода
-12) тестовый прогон на реальном файле .pcap
-13) документация
+5) web-интерфейс
+6) react-ui
+7) diagnose
+8) оптимизация кода
+9) проверка всех модулей
+10) tests
+11) ps-скрипты и sql-шаблон
+12) документация

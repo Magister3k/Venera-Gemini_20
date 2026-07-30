@@ -1,0 +1,141 @@
+manifest\manifest.go
+// notifyError выводит GUI-уведомление при ошибках
+func notifyError(message string) {
+	// В зависимости от того, запущено ли приложение в режиме systray,
+	// выводим уведомление.
+	// Примечание: getlantern/systray не имеет встроенного метода ShowNotification/Balloon,
+	// поэтому здесь мы добавляем пункт меню с ошибкой или логируем.
+	// Для реальных Balloon-уведомлений на Windows лучше использовать github.com/go-toast/toast.
+
+	// Здесь добавим пункт меню с пометкой Ошибка.
+	// В реальной архитектуре Venera этот вызов должен уходить в подсистему логирования или интерфейса.
+	fmt.Printf("Ошибка регистрации: %s\n", message)
+
+	// Попытка использовать systray, если он проинициализирован.
+	// Поскольку systray инициализируется асинхронно, прямое добавление может упасть, если петля не запущена.
+	// Для безопасной интеграции с ТЗ (п.8.2) оставляем этот вызов абстрактным:
+	// systray.AddMenuItem("Ошибка: "+message, "Ошибка манифеста")
+}
+
+---
+
+metrics\database.go
+// GetDatabaseSizes собирает размеры баз данных средствами самих СУБД.
+func GetDatabaseSizes() (uint64, uint64, error) {
+	var cachedbSize uint64
+	var pgdbSize uint64
+
+	// Размер кэширующей СУБД
+	if data.DragonflyClient != nil {
+		// Для Redis/DragonflyDB используем команду MEMORY USAGE или INFO memory.
+		// В DragonflyDB команда INFO memory выдает used_memory в байтах.
+		infoStr, err := data.DragonflyClient.Info(context.Background(), "memory").Result()
+		if err == nil {
+			cachedbSize = parseInfoMemory(infoStr, "used_memory:")
+		}
+	}
+
+	// Размер базы в СУБД PostgreSQL
+	if data.PgPool != nil {		
+		// Используем встроенную функцию pg_database_size
+		query := `SELECT pg_database_size(current_database());`
+		err := data.PgPool.QueryRow(context.Background(), query).Scan(&pgdbSize)
+		// ???если запрос упал, то по умолчанию остается 0
+		if err != nil {
+			// Если запрос упал, просто вернем 0 или можно залогировать (логирование в collector.go)
+		}
+	}
+
+	return cachedbSize, pgdbSize, nil // зачем постоянный nil
+}
+
+---
+
+alerts\notify.go
+func ProcessAlert(event models.AlertEvent, severity string) {
+
+	// В будущем: здесь может быть вызов WebSocket для отправки алерта на фронтенд (React-UI)
+
+}
+
+---
+
+assets\assets.go
+// ExtractIcon извлекает иконку из памяти/ассетов (например, для systray)
+func ExtractIcon(targetPath string) error {
+	// Заглушка: здесь можно вставить []byte иконки (go:embed),
+	// если она нужна для отрисовки трея.
+	// В реальной системе используется go:embed
+	return nil
+}
+
+---
+
+logging\websocket.go
+// wsLogsHandler передает логи в реальном времени
+func wsLogsHandler(c *websocket.Conn) {
+	defer c.Close()
+	// TODO: Реализовать подписку на систему логирования и передачу строк.
+	// Для этого потребуется добавить Hook в logrus, который будет рассылать
+	// сообщения в каналы подписанных WebSocket клиентов.
+	// Оставляем базовую поддержку соединения.
+	for {
+		if _, _, err := c.ReadMessage(); err != nil {
+			break
+		}
+	}
+}
+
+// wsDBHandler передает данные из БД или статус
+func wsDBHandler(c *websocket.Conn) {
+	defer c.Close()
+	// ТЗ п.10.6: "получение и вывод данных из базы СУБД PostgreSQL" через веб-сокет.
+	// Можно реализовать прием запросов на фильтрацию от клиента и отправку результатов.
+
+	for {
+		// Чтение фильтров/запросов от клиента
+		_, _, err := c.ReadMessage()
+		if err != nil {
+			break
+		}
+
+		// Отправка ответа (заглушка: в реальности здесь будет выполнение SQL-запроса)
+		// ...
+	}
+}
+
+---
+
+web\handlers.go
+// apiExportDB выгрузка данных из БД. В идеале генерирует xlsx,
+// здесь мы возвращаем JSON-дамп для простоты интерфейса, фронтенд может сгенерировать excel.
+func apiExportDB(c *fiber.Ctx) error {
+	if data.PgPool == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "БД отключена"})
+	}
+
+	// Лимит на выгрузку (для безопасности)
+	query := `SELECT source, key, value, date_first, date_last FROM venera_data LIMIT 1000;`
+	rows, err := data.PgPool.Query(context.Background(), query)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	defer rows.Close()
+
+	var results []map[string]interface{}
+	for rows.Next() {
+		var src, k, v string
+		var df, dl interface{} // dates
+		if err := rows.Scan(&src, &k, &v, &df, &dl); err == nil {
+			results = append(results, map[string]interface{}{
+				"source":     src,
+				"key":        k,
+				"value":      v,
+				"date_first": df,
+				"date_last":  dl,
+			})
+		}
+	}
+
+	return c.JSON(results)
+}

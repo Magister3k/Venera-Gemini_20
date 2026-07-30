@@ -13,7 +13,7 @@ import (
 	"venera/data"
 )
 
-// SetupWebSockets регистрирует маршруты для WebSocket (п.19.1 ТЗ)
+// SetupWebSockets регистрирует маршруты для WebSocket
 func SetupWebSockets(app *fiber.App) {
 	// Middleware для обновления протокола до WebSocket
 	app.Use("/ws", func(c *fiber.Ctx) error {
@@ -24,17 +24,17 @@ func SetupWebSockets(app *fiber.App) {
 		return fiber.ErrUpgradeRequired
 	})
 
-	// Эндпоинт статистики реального времени (п.10.5 ТЗ)
+	// Эндпоинт статистики реального времени
 	app.Get("/ws/statistics", websocket.New(wsStatisticsHandler))
 	
-	// Эндпоинт для логов (п.10.8 ТЗ)
+	// Эндпоинт для логов
 	app.Get("/ws/logs", websocket.New(wsLogsHandler))
 	
-	// Эндпоинт для базы данных (п.10.6 ТЗ)
+	// Эндпоинт для базы данных
 	app.Get("/ws/db", websocket.New(wsDBHandler))
 }
 
-// wsStatisticsHandler передает метрики системы и процессов каждую секунду (п.1.13, 10.5 ТЗ)
+// wsStatisticsHandler передает метрики системы и процессов каждую секунду
 func wsStatisticsHandler(c *websocket.Conn) {
 	defer c.Close()
 
@@ -52,7 +52,7 @@ func wsStatisticsHandler(c *websocket.Conn) {
 	}
 }
 
-// wsLogsHandler передает логи в реальном времени (п.10.8 ТЗ)
+// wsLogsHandler передает логи в реальном времени
 func wsLogsHandler(c *websocket.Conn) {
 	defer c.Close()
 	
@@ -81,7 +81,7 @@ func wsLogsHandler(c *websocket.Conn) {
 	}
 }
 
-// wsDBHandler передает данные из БД с фильтрацией (п.10.6 ТЗ)
+// wsDBHandler передает данные из итоговой БД с фильтрацией
 func wsDBHandler(c *websocket.Conn) {
 	defer c.Close()
 	
@@ -97,7 +97,7 @@ func wsDBHandler(c *websocket.Conn) {
 		}
 
 		if data.PgPool == nil {
-			c.WriteJSON(map[string]string{"error": "БД отключена"})
+			c.WriteJSON(map[string]string{"error": "итоговая БД отключена"})
 			continue
 		}
 
@@ -106,7 +106,7 @@ func wsDBHandler(c *websocket.Conn) {
 			limit = 50
 		}
 
-		query := `SELECT source, key, value, date_first, date_last FROM venera_data `
+		query := `SELECT * FROM venera `
 		args := []interface{}{}
 		
 		if req.Search != "" {

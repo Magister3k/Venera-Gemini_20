@@ -1,4 +1,4 @@
-package utils
+package container
 
 import (
 	"os/exec"
@@ -9,20 +9,11 @@ import (
 	"venera/tray"
 )
 
-// setupCacheDbContainer проверяет и поднимает контейнер с кэширующей СУБД
-func setupCacheDbContainer(paths models.PathsConfig) {
-	podman := paths.PodmanExe
+// startCacheDbContainer поднимает контейнер с кэширующей СУБД
+func startCacheDbContainer(paths models.PathsConfig) {
 
-	// Проверка наличия podman
- 	if _, err := exec.LookPath(podman); err != nil {
- 		logging.Log.Warnf("Podman не найден по пути: %s", podman)
- 		tray.ShowErrorNotification("Ошибка запуска кэширующей СУБД")
-		return
- 	}
-
-	// Запуск podman machine (если требуется на Windows)
-	if _, err := exec.Command(podman, "machine", "start").Run(); err != nil {
-		logging.Log.Errorf("Ошибка запуска Podman: %v", err)
+	// Запуск Podman
+	if ok := startPodman(paths.PodmanExe); !ok {
 		tray.ShowErrorNotification("Ошибка запуска кэширующей СУБД")
 		return
 	}
@@ -38,9 +29,36 @@ func setupCacheDbContainer(paths models.PathsConfig) {
 	} else {
 		logging.Log.Warnf("Контейнер cachedb не найден")
 
+		// Установка контейнера
+		setupCacheDbContainer(paths.PodmanExe, paths.DbImage)
+	}
+}
+
+// startPodman запускает Podman
+func startPodman(podman string) (started bool) {
+
+	// Проверка наличия исполняемого файла
+ 	if _, err := exec.LookPath(podman); err != nil {
+ 		logging.Log.Warnf("Podman не найден по пути: %s", podman)		
+		return
+ 	}
+
+	// Запуск виртуальной машины
+	if err := exec.Command(podman, "machine", "start").Run(); err != nil {
+		logging.Log.Errorf("Ошибка запуска Podman: %v", err)
+		return
+	}
+
+	started = true
+	return
+}
+
+// setupCacheDbContainer устанавливает контейнер с кэширующей СУБД
+func setupCacheDbContainer(podman, cachedbimage string) {
+
 		// Загрузка образа кэширующей СУБД из файла
-		if _, err := exec.Command(podman, "load", "-i", paths.DbImage).Run(); err != nil {
-			logging.Log.Errorf("Ошибка загрузки образа из файла %s: %v", paths.DbImage, err)
+		if _, err := exec.Command(podman, "load", "-i", cachedbimage).Run(); err != nil {
+			logging.Log.Errorf("Ошибка загрузки образа из файла %s: %v", cachedbimage, err)
 			tray.ShowErrorNotification("Ошибка запуска кэширующей СУБД")
 			return
 		}
