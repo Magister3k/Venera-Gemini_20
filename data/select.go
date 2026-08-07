@@ -17,8 +17,8 @@ var (
 	controlMu  sync.RWMutex // Защита от состояния гонки
 )
 
-// LoadControlList читает файл generic.ctr и заполняет структуру map.
-func LoadControlList(filePath string) error {
+// LoadControl читает файл generic.ctr и заполняет структуру map.
+func LoadControl(filePath string) error {
 	controlMu.Lock()
 	defer controlMu.Unlock()
 

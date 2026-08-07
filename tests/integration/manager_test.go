@@ -29,8 +29,8 @@ func TestProcessManagerIntegration(t *testing.T) {
 	t.Log("Запуск интеграционного теста ProcessManager")
 
 	// Инициализация временной конфигурации
-	config.GlobalConfig = config.DefaultConfig()
-	config.GlobalConfig.Generic.MaxProcesses = 2
+	config.GlobalCfg = config.DefaultConfig()
+	config.GlobalCfg.Generic.MaxProcesses = 2
 
 	// Инициализация менеджера (он глобальный, но мы тестируем его логику)
 	manager := processes.NewProcessManager()
@@ -47,7 +47,7 @@ func TestProcessManagerIntegration(t *testing.T) {
 	// Попытка старта процесса
 	// Поскольку внутри StartProcess запускается Tshark через runCollectionProcess,
 	// который будет пытаться запустить реальный экзешник, мы просто проверим
-	// базовую защиту от двойного старта (так как TsharkExe=tshark упадет, но процесс в мапе сохранится).
+	// базовую защиту от двойного старта (так как Tshark=tshark упадет, но процесс в мапе сохранится).
 
 	err := manager.StartProcess(pConfig)
 	if err != nil {

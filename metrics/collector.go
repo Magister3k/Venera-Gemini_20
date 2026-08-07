@@ -10,15 +10,15 @@ import (
 // или для вывода в Zabbix.
 func CollectAllStats() models.StatsPayload {
 	payload := models.StatsPayload{
-		System:    models.SystemMetrics{},
-		Processes: GetProcessMetrics(),
+		Sys:    models.SysMetrics{},
+		Procs: GetProcsMetrics(),
 	}
 
 	// Сбор памяти
-	freeRAMBytes, freeRAMPercent, err := GetSystemRAM()
+	freeRAMBytes, freeRAMPercent, err := GetSysRAM()
 	if err == nil {
-		payload.System.FreeRAMBytes = freeRAMBytes
-		payload.System.FreeRAMPercent = freeRAMPercent
+		payload.Sys.FreeRAMBytes = freeRAMBytes
+		payload.Sys.FreeRAMPercent = freeRAMPercent
 	}
 
 	// Сбор диска (берем диск, где PostgreSQL)
@@ -27,44 +27,44 @@ func CollectAllStats() models.StatsPayload {
 	dbPath := "C:\\"
 	freeDiskBytes, freeDiskPercent, err := GetDiskSpace(dbPath)
 	if err == nil {
-		payload.System.DbDiskFreeBytes = freeDiskBytes
-		payload.System.DbDiskFreePercent = freeDiskPercent
+		payload.Sys.DbDiskFreeBytes = freeDiskBytes
+		payload.Sys.DbDiskFreePercent = freeDiskPercent
 	}
 
-	// Сбор размеров БД (DragonflyDB и PostgreSQL)
-	dragonflySize, postgresSize, _ := GetDatabaseSizes()
-	payload.System.DragonflyDBSize = dragonflySize
-	payload.System.PostgreSQLSize = postgresSize
+	// Сбор размеров БД (кэширующая СУБД и итоговая БД)
+	cacheDbSize, pgSize, _ := GetDbSizes()
+	payload.Sys.CacheDbSize = cacheDbSize
+	payload.Sys.PgDbSize = pgDbSize
 
 	return payload
 }
 
-// GetSystemStatsCompat - адаптер для поддержки вызова ProtectSystem
-func GetSystemStatsCompat() *SystemStats {
-	freeRAMBytes, freeRAMPercent, _ := GetSystemRAM()
+// GetSysStatsCompat - адаптер для поддержки вызова ProtectSystem
+func GetSysStatsCompat() *SystemStats {
+	freeRAMBytes, freeRAMPercent, _ := GetSysRAM()
 
 	dbPath := "C:\\"
 	_, freeDiskPercent, _ := GetDiskSpace(dbPath)
 
-	return &SystemStats{
+	return &SysStats{
 		FreeRAMBytes:   freeRAMBytes,
 		FreeRAMPercent: freeRAMPercent,
 		DbDiskPercent:  freeDiskPercent,
 	}
 }
 
-// SystemStats структура для совместимости с ProtectSystem
-type SystemStats struct {
+// SysStats структура для совместимости с ProtectSystem
+type SysStats struct {
 	FreeRAMBytes   uint64
 	FreeRAMPercent float64
 	DbDiskPercent  float64
 }
 
-// ProtectSystem проверяет пороги и возвращает флаг необходимости остановки процессов.
-func ProtectSystem() (bool, string) {
-	stats := GetSystemStatsCompat()
+// ProtectSys проверяет пороги и возвращает флаг необходимости остановки процессов.
+func ProtectSys() (bool, string) {
+	stats := GetSysStatsCompat()
 
-	cfg := config.GlobalConfig.System
+	cfg := config.GlobalCfg.System
 
 	if stats.DbDiskPercent < cfg.DiskCriticalThreshold {
 		return true, "Критически мало свободного места на диске! Остановка всех процессов."
@@ -76,11 +76,11 @@ func ProtectSystem() (bool, string) {
 	return false, ""
 }
 
-// CheckDiskWarning проеряет порог и возвращает флаг необходимости предупредить
+// CheckDiskWarn проеряет порог и возвращает флаг необходимости предупредить
 // пользователя о подходе объема свободного места на диске к критической отметке.
-func CheckDiskWarning() bool {
-	stats := GetSystemStatsCompat()
-	cfg := config.GlobalConfig.System
+func CheckDiskWarn() bool {
+	stats := GetSysStatsCompat()
+	cfg := config.GlobalCfg.System
 
 	// Если мы уже в критической зоне, возвращаем false, так как сработает ProtectSystem
 	if stats.DbDiskPercent < cfg.DiskCriticalThreshold {

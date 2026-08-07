@@ -7,7 +7,7 @@ import (
 
 // ProcessAlert обрабатывает сгенерированный алерт.
 // Выводит его в систему логирования, Event Log или отправляет в GUI.
-func ProcessAlert(event models.AlertEvent, severity string) {
+func ProcAlert(event models.AlertEvent, severity string) {
 	// Формируем детальное сообщение
 	msg := event.Message
 	if event.Key != "" || event.Value != "" {

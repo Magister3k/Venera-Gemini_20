@@ -136,7 +136,7 @@ func (pm *ProcessManager) collectFromFileOrFolder(ctx context.Context, p models.
 func (pm *ProcessManager) runTaskManagementProcess(ctx context.Context, rp *RunningProcess) {
 	defer rp.WG.Done()
 
-	ticker := time.NewTicker(config.GlobalConfig.DragonflyDB.Timeout)
+	ticker := time.NewTicker(config.GlobalCfg.DragonflyDB.Timeout)
 	defer ticker.Stop()
 
 	for {
@@ -168,7 +168,7 @@ func (pm *ProcessManager) spawnDataWorker(sourceID string) {
 
 	// Одновременно может быть запущено до n таких процессов
 	pm.workerMu.Lock()
-	if pm.activeWorkers >= config.GlobalConfig.Generic.MaxProcesses {
+	if pm.activeWorkers >= config.GlobalCfg.Generic.MaxProcesses {
 		pm.workerMu.Unlock()
 		// Лимит превышен, снимаем блокировку источника, чтобы попробовать позже
 		pm.sourceLocksMu.Lock()
@@ -197,7 +197,7 @@ func (pm *ProcessManager) spawnDataWorker(sourceID string) {
 
 // runDataProcessingTask - выполняет задачи фильтрации и переноса данных
 func (pm *ProcessManager) runDataProcessingTask(sourceID string, isFinal bool) {
-	count := int64(config.GlobalConfig.DragonflyDB.BatchSize)
+	count := int64(config.GlobalCfg.DragonflyDB.BatchSize)
 	if isFinal {
 		count = -1 // Забрать все элементы из очереди
 	}

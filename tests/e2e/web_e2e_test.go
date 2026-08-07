@@ -25,8 +25,8 @@ func TestE2EWebServer(t *testing.T) {
 	t.Log("Запуск E2E теста веб-сервера")
 
 	// Подготовка конфигурации
-	config.GlobalConfig = config.DefaultConfig()
-	config.GlobalConfig.Generic.WebServerPort = 8085 // Используем нестандартный порт
+	config.GlobalCfg = config.DefaultConfig()
+	config.GlobalCfg.Generic.WebSrvPort = 8085 // Используем нестандартный порт
 
 	// Запуск сервера
 	go web.StartWebServer()

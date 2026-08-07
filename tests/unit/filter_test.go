@@ -61,7 +61,7 @@ func TestFilterLogic(t *testing.T) {
 	}
 }
 
-func TestControlListLogic(t *testing.T) {
+func TestControlLogic(t *testing.T) {
 	// Создаем тестовый файл контроля
 	testFile := "test_generic.ctr"
 	content := `key1|value1
@@ -73,9 +73,9 @@ key2|value2
 	}
 	defer os.Remove(testFile)
 
-	err = data.LoadControlList(testFile)
+	err = data.LoadControl(testFile)
 	if err != nil {
-		t.Fatalf("LoadControlList вернул ошибку: %v", err)
+		t.Fatalf("LoadControl вернул ошибку: %v", err)
 	}
 
 	// Проверки

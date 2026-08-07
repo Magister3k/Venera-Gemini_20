@@ -27,7 +27,7 @@ func SetupRoutes(app *fiber.App) {
 	api.Post("/processes/actions", apiGroupProcessAction)
 
 	// --- Настройки ---
-	api.Get("/config", apiGetConfig)
+	api.Get("/config", apiGetCfg)
 	api.Post("/config", apiUpdateConfig)
 	api.Post("/config/test-postgres", apiTestPostgres)
 	api.Post("/config/test-dragonfly", apiTestDragonfly)
@@ -142,9 +142,9 @@ func apiGroupProcessAction(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
-// apiGetConfig возвращает конфигурацию системы
-func apiGetConfig(c *fiber.Ctx) error {
-	return c.JSON(config.GetConfig())
+// apiGetCfg возвращает конфигурацию системы
+func apiGetCfg(c *fiber.Ctx) error {
+	return c.JSON(config.GetCfg())
 }
 
 // apiUpdateConfig сохраняет новую конфигурацию
@@ -270,7 +270,7 @@ func apiExportDBXlsx(c *fiber.Ctx) error {
 }
 
 func apiRunDiagnose(c *fiber.Ctx) error {
-	report, err := diagnose.RunDiagnosis()
+	report, err := diagnose.RunDiag()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -278,7 +278,7 @@ func apiRunDiagnose(c *fiber.Ctx) error {
 }
 
 func apiDownloadDiagnosePDF(c *fiber.Ctx) error {
-	report, err := diagnose.RunDiagnosis()
+	report, err := diagnose.RunDiag()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	}
@@ -294,7 +294,7 @@ func apiDownloadDiagnosePDF(c *fiber.Ctx) error {
 }
 
 func apiDownloadDiagnoseArchive(c *fiber.Ctx) error {
-	report, _ := diagnose.RunDiagnosis() // Игнорируем ошибку, так как pdf мы все равно соберем
+	report, _ := diagnose.RunDiag() // Игнорируем ошибку, так как pdf мы все равно соберем
 	
 	pdfPath := "Venera_Diagnostic_Report.pdf"
 	_ = diagnose.ExportReportPDF(report, pdfPath)

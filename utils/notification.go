@@ -5,8 +5,8 @@ import (
 	"os/exec"
 )
 
-// ShowBalloonNotification отображает системное всплывающее уведомление Windows (Balloon)
-func ShowBalloonNotification(title, message string) {
+// ShowBalloonNotify отображает системное всплывающее уведомление Windows (Balloon)
+func ShowBalloonNotify(title, message string) {
 	psCmd := fmt.Sprintf(`
 		[void][System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms");
 		$notification = New-Object System.Windows.Forms.NotifyIcon;

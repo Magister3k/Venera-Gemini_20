@@ -15,8 +15,8 @@ var app *fiber.App
 
 // StartWebServer запускает веб-сервер на базе фреймворка Fiber.
 func StartWebServer() {
-	cfg := config.GetConfig()
-	port := cfg.Generic.WebServerPort
+	cfg := config.GetCfg()
+	port := cfg.Generic.WebSrvPort
 	addr := fmt.Sprintf(":%d", port)
 
 	// Инициализация Fiber App

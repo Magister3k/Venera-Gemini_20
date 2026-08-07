@@ -1,11 +1,9 @@
 package models
 
-import	"time"
-
-// DataEntry структура для передачи данных в итоговую БД
+// DataEntry представляет одну разобранную запись (ключ-значение-время), готовую для вставки в итоговую базу.
 type DataEntry struct {
-	Source    string
-	Key       string
-	Value     string
-	Timestamp int64
+	Source    string // Название источника
+	Key       string // Ключ
+	Value     string // Значение
+	Timestamp int64  // Unix timestamp (мс) (используется для date_first и date_last через UPSERT)
 }

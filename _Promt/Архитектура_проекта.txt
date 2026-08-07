@@ -59,7 +59,7 @@
 		diagnose.ps1					//Диагностика проекта
 		remove_cachedb.ps1				//Удаление контейнера кэширующей СУБД
 	services\					//Модуль работы со службой Windows 
-		win_service.go					//Работа со службой Windows
+		service.go					//Работа со службой Windows
 	settings\					//Настройки проекта
 		generic.alr					//Файл алертов
 		generic.ctr					//Файл списка значений на контроле

@@ -14,12 +14,12 @@ func init() {
 	logging.Log = logrus.New()
 	logging.Log.SetOutput(os.Stdout)
 	// Инициализация конфига для избежания nil pointer
-	config.GlobalConfig = config.DefaultConfig()
+	config.GlobalCfg = config.DefaultConfig()
 }
 
 func TestDiagnoseReport(t *testing.T) {
-	// 1. Получение отчета
-	report, err := diagnose.RunDiagnosis()
+	// Получение отчета
+	report, err := diagnose.RunDiag()
 	if err != nil {
 		t.Fatalf("Ошибка генерации отчета: %v", err)
 	}
@@ -28,7 +28,7 @@ func TestDiagnoseReport(t *testing.T) {
 		t.Fatal("Отчет пуст")
 	}
 
-	// 2. Экспорт в PDF
+	// Экспорт в PDF
 	pdfPath := "test_report.pdf"
 	err = diagnose.ExportReportPDF(report, pdfPath)
 	if err != nil {
@@ -40,7 +40,7 @@ func TestDiagnoseReport(t *testing.T) {
 		t.Error("Файл PDF не был создан")
 	}
 
-	// 3. Создание архива
+	// Создание архива
 	gzPath := "test_archive.tar.gz"
 	err = diagnose.CreateArchiveGZ(pdfPath, gzPath)
 	if err != nil {

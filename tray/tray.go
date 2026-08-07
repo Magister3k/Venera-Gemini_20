@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os/exec"
 	"runtime"
-	"time"
 
 	"github.com/getlantern/systray"
 
@@ -40,7 +39,7 @@ func onReady() {
 		logging.Log.Warn("Иконка трея не загружена")
 	}
 
-	cfg := config.GetConfig()
+	cfg := config.GetCfg()
 
 	// Скрываем консоль после полной загрузки tray, если было включено отображение
 	if cfg.Generic.ShowConsoleOnStartup {
@@ -58,7 +57,7 @@ func onReady() {
 		systray.AddSeparator()
 
 		logging.Log.Warn("Приложение запущено без прав Администратора")
-		utils.ShowBalloonNotification("Внимание", "Приложение запущено без прав Администратора. Некоторые функции могут быть недоступны.")
+		utils.ShowBalloonNotify("Venera", "Приложение запущено без прав Администратора. Некоторые функции могут быть недоступны.")
 	}
 
 	// Меню управления
@@ -97,9 +96,9 @@ func onExit() {
 	onStop()
 }
 
-// openWebInterface открывает браузер по умолчанию на адресе веб-сервера.
+// openWebInterface открывает веб-интерфейс в браузере по умолчанию.
 func openWebInterface() {
-	port := config.GlobalConfig.Generic.WebServerPort
+	port := config.GlobalCfg.Generic.WebSrvPort
 	if port == 0 {
 		port = 8080 // Fallback
 	}
@@ -117,7 +116,7 @@ func openWebInterface() {
 	case "linux":
 		err = exec.Command("xdg-open", url).Start()
 	default:
-		err = fmt.Errorf("unsupported platform")
+		err = fmt.Errorf("неподдерживаемая платформа")
 	}
 
 	if err != nil {
@@ -126,10 +125,10 @@ func openWebInterface() {
 }
 
 // ShowErrorNotification добавляет пункт меню с ошибкой для имитации уведомлений в трее
-func ShowErrorNotification(message string) {
+/*func ShowErrorNotification(msg string) {
 	// Взаимодействие с GUI должно выполняться в основном потоке,
 	// но systray thread-safe для AddMenuItem.
-	mErr := systray.AddMenuItem("❌ Ошибка: "+message, "")
+	mErr := systray.AddMenuItem("❌ Ошибка: " + msg, "")
 	mErr.Disable()
 
 	// Авто-удаление сообщения через 10 секунд (опционально)
@@ -139,5 +138,5 @@ func ShowErrorNotification(message string) {
 	}()
 
 	// Выводим системный Balloon
-	utils.ShowBalloonNotification("Ошибка Venera", message)
-}
+	utils.ShowBalloonNotify("Venera", msg)
+}*/

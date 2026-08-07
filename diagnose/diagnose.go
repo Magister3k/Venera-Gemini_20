@@ -22,41 +22,41 @@ import (
 	"venera/services"
 )
 
-// DiagnosticReport содержит результаты выполнения всех проверок.
-type DiagnosticReport struct {
-	AppVersion          string
-	ConfigExists        bool
-	ManifestRegistered  bool
-	ManifestVersion     string
-	FreeRAMBytes        uint64
-	FreeRAMPercent      float64
-	PGDiskFreeBytes     uint64
-	DFDiskFreeBytes     uint64
-	NetworkInterfaces   []string
-	TsharkExists        bool
-	PodmanExists        bool
-	DragonflyImageExist bool
-	PGConnected         bool
-	ServiceInstalled    bool
-	ServiceStatus       string
-	AppMode             string
-	EventLogErrors      []string
+// DiagReport содержит результаты выполнения всех проверок.
+type DiagReport struct {
+	AppVersion            string
+	CfgExists             bool
+	ManifestRegistered    bool
+	ManifestVersion       string
+	FreeRAMBytes          uint64
+	FreeRAMPercent        float64
+	TargetDbDiskFreeBytes uint64
+	CacheDbDiskFreeBytes  uint64
+	NetworkInterfaces     []string
+	TsharkExists          bool
+	PodmanExists          bool
+	CacheDbImageExist     bool
+	PgConnected           bool
+	SvcInstalled          bool
+	SvcStatus             string
+	AppMode               string
+	EventLogErrors        []string
 }
 
-// RunDiagnosis собирает всю диагностическую информацию
-func RunDiagnosis() (*DiagnosticReport, error) {
-	report := &DiagnosticReport{
+// RunDiag собирает всю диагностическую информацию
+func RunDiag() (*DiagReport, error) {
+	report := &DiagReport{
 		AppVersion: manifest.CurrentAppVersion,
 	}
 
-	cfg := config.GlobalConfig
+	cfg := config.GlobalCfg
 
-	// 2. Проверка наличия файла конфигурации
+	// Проверка наличия файла конфигурации
 	if _, err := os.Stat(config.ConfigPath); err == nil {
-		report.ConfigExists = true
+		report.CfgExists = true
 	}
 
-	// 3-4. Проверка манифеста
+	// Проверка манифеста
 	cmd := exec.Command("wevtutil", "ep")
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -66,57 +66,57 @@ func RunDiagnosis() (*DiagnosticReport, error) {
 		report.ManifestVersion = manifest.CurrentAppVersion // В идеале парсится XML
 	}
 
-	// 5-7. Объемы RAM и дисков
+	// Объемы RAM и дисков
 	ram, ramPct, _ := metrics.GetSystemRAM()
 	report.FreeRAMBytes = ram
 	report.FreeRAMPercent = ramPct
 
+	// TODO: определять путь к диску с итоговой базой средствами СУБД PostgreSQL
 	pgDiskPath := "C:\\" // Default fallback
 	if cfg.PostgreSQL.Host == "127.0.0.1" || cfg.PostgreSQL.Host == "localhost" {
 		pgDiskPath = "C:\\" // Условно диск C для локальной БД
 	}
-	dfDiskPath := cfg.Paths.DbBackupDir
-	if dfDiskPath == "" {
-		dfDiskPath = "."
+	cacheDbDiskPath := cfg.Paths.DbBackupDir
+	if cacheDbDiskPath == "" {
+		cacheDbDiskPath = "."
 	}
 
-	absDfPath, _ := filepath.Abs(dfDiskPath)
+	absCacheDbPath, _ := filepath.Abs(cacheDbDiskPath)
 
 	pgFree, _, _ := metrics.GetDiskSpace(pgDiskPath)
-	dfFree, _, _ := metrics.GetDiskSpace(absDfPath)
+	cacheDbFree, _, _ := metrics.GetDiskSpace(absCacheDbPath)
 
-	report.PGDiskFreeBytes = pgFree
-	report.DFDiskFreeBytes = dfFree
+	report.TargetDbDiskFreeBytes = pgFree
+	report.CacheDbDiskFreeBytes = cacheDbFree
 
-	// 8. Список сетевых адаптеров
+	// Список сетевых адаптеров
 	ifaces, _ := metrics.GetNetworkInterfaces()
 	report.NetworkInterfaces = ifaces
 
-	// 9-10. Наличие исполняемых файлов
-	report.TsharkExists = fileExists(cfg.Paths.TsharkExe) || checkCommand(cfg.Paths.TsharkExe)
-	report.PodmanExists = fileExists(cfg.Paths.PodmanExe) || checkCommand(cfg.Paths.PodmanExe)
+	// Наличие исполняемых файлов
+	report.TsharkExists = fileExists(cfg.Paths.Tshark) || checkCommand(cfg.Paths.Tshark)
+	report.PodmanExists = fileExists(cfg.Paths.Podman) || checkCommand(cfg.Paths.Podman)
 
-	// 11. Наличие образа DragonflyDB
+	// Наличие локального файла с образом кэширующей СУБД
 	// Используем podman image exists
 	if report.PodmanExists {
-		cmdImg := exec.Command(cfg.Paths.PodmanExe, "image", "exists", cfg.Paths.DbImage)
-		err := cmdImg.Run()
-		report.DragonflyImageExist = (err == nil)
+		err := exec.Command(cfg.Paths.Podman, "image", "exists", cfg.Paths.DbImage).Run()
+		report.CacheDbImageExist = (err == nil)
 	}
 
-	// 12. Проверка подключения к СУБД PostgreSQL
+	// Проверка подключения к итоговой базе в СУБД PostgreSQL
 	if data.PgPool != nil {
 		err := data.PgPool.Ping(context.Background())
-		report.PGConnected = (err == nil)
+		report.PgConnected = (err == nil)
 	}
 
-	// 13-14. Проверка службы
-	statusStr, _ := services.GetServiceStatus()
-	report.ServiceInstalled = (statusStr != "Не установлена" && statusStr != "Ошибка")
-	report.ServiceStatus = statusStr
+	// Проверка службы
+	statusStr, _ := services.GetSvcStatus()
+	report.SvcInstalled = (statusStr != "Не установлена" && statusStr != "Ошибка")
+	report.SvcStatus = statusStr
 	report.AppMode = cfg.Generic.Mode
 
-	// 15. Последние 10 ошибок Event Log
+	// Последние 10 ошибок Event Log
 	report.EventLogErrors = getEventLogErrors()
 
 	return report, nil
@@ -154,7 +154,7 @@ func getEventLogErrors() []string {
 }
 
 // ExportReportPDF создает отчет в формате PDF на русском языке
-func ExportReportPDF(report *DiagnosticReport, outputPath string) error {
+func ExportReportPDF(report *DiagReport, outputPath string) error {
 	pdf := gopdf.GoPdf{}
 	pdf.Start(gopdf.Config{PageSize: *gopdf.PageSizeA4})
 	pdf.AddPage()
@@ -185,15 +185,15 @@ func ExportReportPDF(report *DiagnosticReport, outputPath string) error {
 
 	addLine("Версия приложения", report.AppVersion)
 	addLine("Режим работы", report.AppMode)
-	addLine("Файл конфигурации", fmt.Sprintf("%v", report.ConfigExists))
+	addLine("Файл конфигурации", fmt.Sprintf("%v", report.CfgExists))
 	addLine("Манифест зарегистрирован", fmt.Sprintf("%v", report.ManifestRegistered))
 	addLine("Версия манифеста", report.ManifestVersion)
-	addLine("Служба установлена", fmt.Sprintf("%v", report.ServiceInstalled))
-	addLine("Статус службы", report.ServiceStatus)
+	addLine("Служба установлена", fmt.Sprintf("%v", report.SvcInstalled))
+	addLine("Статус службы", report.SvcStatus)
 	addLine("Доступен Tshark", fmt.Sprintf("%v", report.TsharkExists))
 	addLine("Доступен Podman", fmt.Sprintf("%v", report.PodmanExists))
-	addLine("Образ DragonflyDB загружен", fmt.Sprintf("%v", report.DragonflyImageExist))
-	addLine("СУБД PostgreSQL подключена", fmt.Sprintf("%v", report.PGConnected))
+	addLine("Образ DragonflyDB загружен", fmt.Sprintf("%v", report.CacheDbImageExist))
+	addLine("СУБД PostgreSQL подключена", fmt.Sprintf("%v", report.PgConnected))
 
 	pdf.Br(10)
 	pdf.SetFont("Arial", "", 14)
@@ -203,8 +203,8 @@ func ExportReportPDF(report *DiagnosticReport, outputPath string) error {
 
 	addLine("Свободная ОЗУ (MB)", fmt.Sprintf("%d", report.FreeRAMBytes/(1024*1024)))
 	addLine("Свободная ОЗУ (%)", fmt.Sprintf("%.2f%%", report.FreeRAMPercent))
-	addLine("Свободное место на диске БД PG (MB)", fmt.Sprintf("%d", report.PGDiskFreeBytes/(1024*1024)))
-	addLine("Свободное место на диске бэкапа DF (MB)", fmt.Sprintf("%d", report.DFDiskFreeBytes/(1024*1024)))
+	addLine("Свободное место на диске с итоговой БД (MB)", fmt.Sprintf("%d", report.TargetDbDiskFreeBytes/(1024*1024)))
+	addLine("Свободное место на диске с бэкапом кэширующей СУБД (MB)", fmt.Sprintf("%d", report.CacheDbDiskFreeBytes/(1024*1024)))
 
 	pdf.Br(10)
 	pdf.SetFont("Arial", "", 14)
@@ -240,13 +240,13 @@ func CreateArchiveGZ(pdfReportPath, outputPath string) error {
 	defer tw.Close()
 
 	// Список файлов для архивации
-	cfg := config.GlobalConfig
+	cfg := config.GlobalCfg
 	filesToArchive := []string{
 		pdfReportPath,
 		config.ConfigPath,
-		cfg.Paths.FilterList,
-		cfg.Paths.ControlList,
-		cfg.Paths.AlertsList,
+		cfg.Paths.Filter,
+		cfg.Paths.Control,
+		cfg.Paths.Alerts,
 	}
 
 	// Добавляем все логи из папки Logs

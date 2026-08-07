@@ -58,7 +58,7 @@ func (m *Manager) Emit(event string, data interface{}) {
 			go func(callback EventCallback, eventData interface{}) {
 				defer func() {
 					if r := recover(); r != nil {
-						logging.Log.Errorf("КРИТИЧЕСКАЯ ОШИБКА (Panic) в коллбеке события '%s': %v", event, r)
+						logging.Log.Warnf("Критическая ошибка в коллбеке события '%s': %v", event, r)
 					}
 				}()
 				callback(eventData)

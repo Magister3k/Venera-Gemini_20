@@ -1,81 +1,71 @@
-package container
+package containers
 
 import (
 	"os/exec"
 	"strings"
 
 	"venera/logging"
-	"venera/models"
-	"venera/tray"
+	"venera/utils"
 )
 
-// startCacheDbContainer поднимает контейнер с кэширующей СУБД
-func startCacheDbContainer(paths models.PathsConfig) {
+// startCacheDb поднимает контейнер с кэширующей СУБД
+func startCacheDb(pathPodman, pathImage string) {
 
 	// Запуск Podman
-	if ok := startPodman(paths.PodmanExe); !ok {
-		tray.ShowErrorNotification("Ошибка запуска кэширующей СУБД")
-		return
-	}
-
-	// Проверка наличия контейнера CacheDb
-	out, _ := exec.Command(podman, "ps", "-a", "--format", "{{.Names}}").Output()
-	if strings.Contains(string(out), "cachedb") {
+	ok := startPodman(pathPodman)
+	if ok {
 		// Запуск контейнера
-		if _, err := exec.Command(podman, "start", "cachedb").Run(); err != nil {
-			logging.Log.Errorf("Ошибка запуска контейнера: %v", err)
-			tray.ShowErrorNotification("Ошибка запуска кэширующей СУБД")
+		container := "cachedb"
+		ok = startContainer(pathPodman, container)
+		if !ok {
+			imageStrArr := []string{"dragonfly", "redis"}
+			// Установка и запуск контейнера
+			ok = setupContainer(pathPodman, pathImage, container, imageStrArr)
 		}
-	} else {
-		logging.Log.Warnf("Контейнер cachedb не найден")
-
-		// Установка контейнера
-		setupCacheDbContainer(paths.PodmanExe, paths.DbImage)
+	}
+	if !ok {
+		utils.ShowBalloonNotify("Venera", "Ошибка запуска кэширующей СУБД")
 	}
 }
 
-// startPodman запускает Podman
-func startPodman(podman string) (started bool) {
-
-	// Проверка наличия исполняемого файла
- 	if _, err := exec.LookPath(podman); err != nil {
- 		logging.Log.Warnf("Podman не найден по пути: %s", podman)		
-		return
- 	}
-
-	// Запуск виртуальной машины
-	if err := exec.Command(podman, "machine", "start").Run(); err != nil {
-		logging.Log.Errorf("Ошибка запуска Podman: %v", err)
+// startContainer Запускает контейнер
+func startContainer(podman, container  string) (started bool){
+	out, _ := exec.Command(podman, "ps", "-a", "--format", "{{.Names}}").Output()
+	if strings.Contains(string(out), container) {
+		// Запуск контейнера
+		if err := exec.Command(podman, "start", container).Run(); err != nil {
+			logging.Log.Errorf("Ошибка запуска контейнера %s: %v", container, err)
+			return
+		}
+	} else {
+		logging.Log.Warnf("Контейнер %s не найден", container)
 		return
 	}
-
 	started = true
 	return
 }
 
-// setupCacheDbContainer устанавливает контейнер с кэширующей СУБД
-func setupCacheDbContainer(podman, cachedbimage string) {
-
-		// Загрузка образа кэширующей СУБД из файла
-		if _, err := exec.Command(podman, "load", "-i", cachedbimage).Run(); err != nil {
-			logging.Log.Errorf("Ошибка загрузки образа из файла %s: %v", cachedbimage, err)
-			tray.ShowErrorNotification("Ошибка запуска кэширующей СУБД")
+// setupContainer устанавливает и запускает контейнер
+func setupContainer(podman, image, container string, imageStrArr []string) (started bool) {
+		// Загрузка образа из файла
+		if err := exec.Command(podman, "load", "-i", image).Run(); err != nil {
+			logging.Log.Errorf("Ошибка загрузки образа из файла %s: %v", image, err)
 			return
 		}
-		imageStrArr := []string{"dragonfly", "redis"}
 		for _, imageStr := range imageStrArr {
 			// Получение имени загруженного образа
 			out, _ := exec.Command(podman, "image", "inspect", imageStr, "--format", "{{index .NamesHistory 0}}").Output()
 			if len(out) > 1 {
 				imageName := strings.TrimSpace(string(out))
 				// Создание и запуск контейнера
-				err := exec.Command(podman, "run", "-d", "--name", "cachedb", "-p", "6379:6379", imageName).Run()
+				err := exec.Command(podman, "run", "-d", "--name", container, "-p", "6379:6379", imageName).Run()
 				if err != nil {
-					logging.Log.Errorf("Ошибка создания контейнера: %v", err)
-					tray.ShowErrorNotification("Ошибка запуска кэширующей СУБД")
+					logging.Log.Errorf("Ошибка создания контейнера %s: %v", container, err)
+					return
 				}
 				break
 			}
 		}
-	}
+		started = true
+		return
 }

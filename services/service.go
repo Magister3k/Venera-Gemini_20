@@ -26,8 +26,8 @@ func (p *program) Stop(s service.Service) error {
 	return nil
 }
 
-// getService возвращает объект службы kardianos/service
-func getService(startApp func(), stopApp func()) (service.Service, error) {
+// getSvc возвращает объект службы kardianos/service
+func getSvc(startApp func(), stopApp func()) (service.Service, error) {
 	svcConfig := &service.Config{
 		Name:        "VeneraSrv",
 		DisplayName: "Venera",
@@ -42,9 +42,9 @@ func getService(startApp func(), stopApp func()) (service.Service, error) {
 	return service.New(prg, svcConfig)
 }
 
-// RunService настраивает и запускает приложение как службу Windows
-func RunService(startApp func(), stopApp func()) error {
-	s, err := getService(startApp, stopApp)
+// RunSvc настраивает и запускает приложение как службу Windows
+func RunSvc(startApp func(), stopApp func()) error {
+	s, err := getSvc(startApp, stopApp)
 	if err != nil {
 		return fmt.Errorf("ошибка создания службы: %v", err)
 	}
@@ -63,13 +63,13 @@ func RunService(startApp func(), stopApp func()) error {
 	return nil
 }
 
-// InstallService устанавливает службу Windows
-func InstallService() error {
+// InstallSvc устанавливает службу Windows
+func InstallSvc() error {
 	if !utils.IsAdmin() {
 		return fmt.Errorf("для установки службы требуются права Администратора")
 	}
 
-	s, err := getService(nil, nil)
+	s, err := getSvc(nil, nil)
 	if err != nil {
 		return fmt.Errorf("ошибка инициализации конфигурации службы: %v", err)
 	}
@@ -88,13 +88,13 @@ func InstallService() error {
 	return nil
 }
 
-// UninstallService останавливает и удаляет службу Windows
-func UninstallService() error {
+// UninstallSvc останавливает и удаляет службу Windows
+func UninstallSvc() error {
 	if !utils.IsAdmin() {
 		return fmt.Errorf("для удаления службы требуются права Администратора")
 	}
 
-	s, err := getService(nil, nil)
+	s, err := getSvc(nil, nil)
 	if err != nil {
 		return fmt.Errorf("ошибка инициализации конфигурации службы: %v", err)
 	}
@@ -118,13 +118,13 @@ func UninstallService() error {
 	return nil
 }
 
-// ControlService позволяет запустить или остановить установленную службу
-func ControlService(action string) error {
+// ControlSvc позволяет запустить или остановить установленную службу
+func ControlSvc(action string) error {
 	if !utils.IsAdmin() {
 		return fmt.Errorf("для управления службой требуются права Администратора")
 	}
 
-	s, err := getService(nil, nil)
+	s, err := getSvc(nil, nil)
 	if err != nil {
 		return err
 	}
@@ -139,9 +139,9 @@ func ControlService(action string) error {
 	}
 }
 
-// GetServiceStatus возвращает текущее состояние службы
-func GetServiceStatus() (string, error) {
-	s, err := getService(nil, nil)
+// GetSvcStatus возвращает текущее состояние службы
+func GetSvcStatus() (string, error) {
+	s, err := getSvc(nil, nil)
 	if err != nil {
 		return "Ошибка", err
 	}

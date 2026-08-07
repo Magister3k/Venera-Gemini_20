@@ -41,9 +41,9 @@ func TestConfigLoadAndSave(t *testing.T) {
 		t.Fatalf("ошибка загрузки конфигурации: %v", err)
 	}
 
-	loaded := config.GetConfig()
-	if loaded.Generic.WebServerPort != 8080 {
-		t.Errorf("ожидался порт веб-сервера 8080, получен %d", loaded.Generic.WebServerPort)
+	loaded := config.GetCfg()
+	if loaded.Generic.WebSrvPort != 8080 {
+		t.Errorf("ожидался порт веб-сервера 8080, получен %d", loaded.Generic.WebSrvPort)
 	}
 
 	// 4. Тест валидации (неверный режим)
@@ -68,7 +68,7 @@ func TestConfigLoadAndSave(t *testing.T) {
 		t.Fatalf("ошибка корректного обновления конфигурации: %v", err)
 	}
 
-	finalCfg := config.GetConfig()
+	finalCfg := config.GetCfg()
 	if finalCfg.Generic.MaxProcesses != 15 {
 		t.Errorf("ожидалось MaxProcesses = 15, получено %d", finalCfg.Generic.MaxProcesses)
 	}

@@ -8,14 +8,15 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+
 	"venera/models"
 )
 
 var (
-	// mu защищает доступ к GlobalConfig для предотвращения Race Conditions
+	// mu защищает доступ к GlobalCfg для предотвращения Race Conditions
 	mu           sync.RWMutex
-	GlobalConfig *models.Config
-	ConfigPath   string
+	GlobalCfg *models.Config
+	CfgPath   string
 )
 
 func init() {
@@ -24,50 +25,50 @@ func init() {
 	// так как рабочий каталог службы может отличаться (например, C:\Windows\System32).
 	exePath, err := os.Executable()
 	if err == nil {
-		ConfigPath = filepath.Join(filepath.Dir(exePath), "config.toml")
+		CfgPath = filepath.Join(filepath.Dir(exePath), "config.toml")
 	} else {
 		// Fallback
-		ConfigPath = "config.toml"
+		CfgPath = "config.toml"
 	}
 }
 
-// DefaultConfig возвращает конфигурацию по умолчанию
-func DefaultConfig() *models.Config {
+// DefaultCfg возвращает конфигурацию по умолчанию
+func DefaultCfg() *models.Config {
 	return &models.Config{
-		Generic: models.GenericConfig{
-			Mode:                 "tray", // Режим работы: tray (системный трей) или service (служба)
-			AutoStart:            false,  // Автоматический старт всех процессов при запуске
-			MaxProcesses:         20,     // Ограничение количества процессов
-			WebServerPort:        8080,   // Порт веб-сервера по умолчанию
-			LogRotationDays:      7,      // Срок хранения логов в днях
+		Generic: models.GenericCfg{
+			Mode:                 "tray",
+			AutoStart:            false,
+			MaxProcs:             20,
+			WebSrvPort:           8080,
+			LogRotDays:           7,
 			LocalUIType:          "react",
-			ShowConsoleOnStartup: true,   // По умолчанию показываем консоль, потом скрываем
+			ShowConsoleOnStartup: true,
 		},
-		Paths: models.PathsConfig{
-			PodmanExe:   "progs/podman/podman.exe",
-			TsharkExe:   "progs/wireshark/tshark.exe",
-			FilterList:  "settings/generic.flt",
-			ControlList: "settings/generic.ctr",
-			AlertsList:  "settings/generic.alr",
-			DbImage:     "progs/dragonflydb/dragonflydb.tar.gz",
-			DbBackupDir: "cache",
+		Paths: models.PathsCfg{
+			Podman:    "progs/podman/podman.exe",
+			Tshark:    "progs/wireshark/tshark.exe",
+			Filter:   "settings/generic.flt",
+			Control:  "settings/generic.ctr",
+			Alerts:   "settings/generic.alr",
+			CacheDbImage: "progs/dragonflydb/dragonflydb.tar.gz",
+			CacheDir:     "cache",
 		},
-		DragonflyDB: models.DragonflyDBConfig{
+		CacheDb: models.CacheDbCfg{
 			Host:      "127.0.0.1",
 			Port:      6379,
-			Password:  "",
+			Pass:      "",
 			BatchSize: 1000,
 			Timeout:   5 * time.Second,
 		},
-		PostgreSQL: models.PostgreSQLConfig{
+		PgDb: models.PgDbCfg{
 			Host:     "127.0.0.1",
 			Port:     5432,
 			User:     "postgres",
-			Password: "postgres",
-			Database: "Venera",
+			Pass:     "postgres",
+			Name:     "Venera",
 			SSLMode:  "disable",
 		},
-		System: models.SystemConfig{
+		System: models.SysCfg{
 			DiskWarningThreshold:  15.0, // Объем свободного места для предупреждения
 			DiskCriticalThreshold: 5.0,  // Объем свободного места для остановки процессов
 			RamCriticalThreshold:  5.0,  // Объем свободной RAM для остановки процессов
@@ -75,30 +76,30 @@ func DefaultConfig() *models.Config {
 	}
 }
 
-// GetConfig возвращает потокобезопасную глубокую копию или указатель на текущую конфигурацию.
+// GetCfg возвращает потокобезопасную глубокую копию или указатель на текущую конфигурацию.
 // Используется для предотвращения race condition при чтении из разных горутин.
-func GetConfig() models.Config {
+func GetCfg() models.Config {
 	mu.RLock()
 	defer mu.RUnlock()
-	if GlobalConfig == nil {
-		return *DefaultConfig()
+	if GlobalCfg == nil {
+		return *DefaultCfg()
 	}
-	return *GlobalConfig
+	return *GlobalCfg
 }
 
-// LoadConfig загружает конфигурацию из файла config.toml с валидацией параметров
-func LoadConfig() error {
+// LoadCfg загружает конфигурацию из файла config.toml с валидацией параметров
+func LoadCfg() error {
 	mu.Lock()
 	defer mu.Unlock()
 
-	tempConfig := DefaultConfig()
+	tempCfg := DefaultCfg()
 
-	if _, err := os.Stat(ConfigPath); os.IsNotExist(err) {
+	if _, err := os.Stat(CfgPath); os.IsNotExist(err) {
 		// Если файл не существует, создаем директорию и записываем дефолтную конфигурацию
-		EnsureDir(ConfigPath)
-		GlobalConfig = tempConfig
-		mu.Unlock() // временно отпускаем мьютекс для SaveConfig, так как он сам захватит его
-		errSave := SaveConfig(tempConfig)
+		EnsureDir(CfgPath)
+		GlobalCfg = tempCfg
+		mu.Unlock() // временно отпускаем мьютекс для SaveCfg, так как он сам захватит его
+		errSave := SaveCfg(tempCfg)
 		mu.Lock() // возвращаем блокировку
 		if errSave != nil {
 			return fmt.Errorf("не удалось создать конфигурацию по умолчанию: %v", errSave)
@@ -106,22 +107,22 @@ func LoadConfig() error {
 		return nil
 	}
 
-	// Декодируем TOML во временную структуру, чтобы не повредить GlobalConfig при ошибках парсинга
-	_, err := toml.DecodeFile(ConfigPath, tempConfig)
+	// Декодируем TOML во временную структуру, чтобы не повредить GlobalCfg при ошибках парсинга
+	_, err := toml.DecodeFile(CfgPath, tempCfg)
 	if err != nil {
 		return fmt.Errorf("ошибка парсинга config.toml: %v", err)
 	}
 
-	// Валидация параметров согласно жестким требованиям ТЗ
-	if err := validateConfig(tempConfig); err != nil {
+	// Валидация параметров
+	if err := validateCfg(tempCfg); err != nil {
 		return fmt.Errorf("валидация конфигурации не пройдена: %v", err)
 	}
 
-	GlobalConfig = tempConfig
+	GlobalCfg = tempCfg
 
 	// Применяем зеркалирование (разрешение) путей относительно папки с исполняемым файлом.
 	// Это гарантирует, что пути к настройкам, бэкапам и логам не зависят от рабочей директории службы.
-	exeDir := filepath.Dir(ConfigPath)
+	exeDir := filepath.Dir(CfgPath)
 	
 	resolvePath := func(p *string) {
 		if *p != "" && !filepath.IsAbs(*p) {
@@ -129,46 +130,46 @@ func LoadConfig() error {
 		}
 	}
 
-	resolvePath(&GlobalConfig.Paths.FilterList)
-	resolvePath(&GlobalConfig.Paths.ControlList)
-	resolvePath(&GlobalConfig.Paths.AlertsList)
-	resolvePath(&GlobalConfig.Paths.DbBackupDir)
+	resolvePath(&GlobalCfg.Paths.Filter)
+	resolvePath(&GlobalCfg.Paths.Control)
+	resolvePath(&GlobalCfg.Paths.Alerts)
+	resolvePath(&GlobalCfg.Paths.CacheDir)
 
-	// Создаем папку для бэкапов DragonflyDB, если указана
-	if GlobalConfig.Paths.DbBackupDir != "" {
-		_ = os.MkdirAll(GlobalConfig.Paths.DbBackupDir, 0755)
+	// Создаем папку для резервирования кэширубщей СУБД, если указана
+	if GlobalCfg.Paths.CacheDir != "" {
+		_ = os.MkdirAll(GlobalCfg.Paths.CacheDir, 0755)
 	}
 
 	return nil
 }
 
-// UpdateConfig обновляет текущую конфигурацию в памяти и сохраняет ее на диск атомарно
-func UpdateConfig(cfg *models.Config) error {
-	if err := validateConfig(cfg); err != nil {
+// UpdateCfg обновляет текущую конфигурацию в памяти и сохраняет ее на диск атомарно
+func UpdateCfg(cfg *models.Config) error {
+	if err := validateCfg(cfg); err != nil {
 		return fmt.Errorf("валидация обновленной конфигурации не пройдена: %v", err)
 	}
 
 	mu.Lock()
-	GlobalConfig = cfg
+	GlobalCfg = cfg
 	mu.Unlock()
 
-	return SaveConfig(cfg)
+	return SaveCfg(cfg)
 }
 
-// SaveConfig сохраняет конфигурацию в файл config.toml с созданием резервной копии (.bak) для надежности
-func SaveConfig(cfg *models.Config) error {
+// SaveCfg сохраняет конфигурацию в файл config.toml с созданием резервной копии (.bak) для надежности
+func SaveCfg(cfg *models.Config) error {
 	mu.Lock()
 	defer mu.Unlock()
 
 	// Если файл уже существует, создаем его резервную копию перед перезаписью
-	if _, err := os.Stat(ConfigPath); err == nil {
-		bakPath := ConfigPath + ".bak"
+	if _, err := os.Stat(CfgPath); err == nil {
+		bakPath := CfgPath + ".bak"
 		_ = os.Remove(bakPath) // Удаляем старый бэкап, если он был
-		_ = os.Rename(ConfigPath, bakPath)
+		_ = os.Rename(CfgPath, bakPath)
 	}
 
-	EnsureDir(ConfigPath)
-	file, err := os.Create(ConfigPath)
+	EnsureDir(CfgPath)
+	file, err := os.Create(CfgPath)
 	if err != nil {
 		return fmt.Errorf("ошибка создания config.toml: %v", err)
 	}
@@ -182,21 +183,16 @@ func SaveConfig(cfg *models.Config) error {
 	return nil
 }
 
-// validateConfig проверяет корректность параметров конфигурации на соответствие ТЗ
-func validateConfig(cfg *models.Config) error {
-	// Одновременно может быть запущено до 20 рабочих процессов
-	if cfg.Generic.MaxProcesses <= 0 || cfg.Generic.MaxProcesses > 20 {
-		return fmt.Errorf("максимальное количество процессов должно быть в диапазоне от 1 до 20 (настроено: %d)", cfg.Generic.MaxProcesses)
-	}
-
+// validateCfg проверяет корректность параметров конфигурации
+func validateCfg(cfg *models.Config) error {
 	// Проверка режима работы
 	if cfg.Generic.Mode != "tray" && cfg.Generic.Mode != "service" {
 		return fmt.Errorf("недопустимый режим работы '%s'; разрешены только 'tray' или 'service'", cfg.Generic.Mode)
 	}
 
 	// Проверка портов веб-сервера
-	if cfg.Generic.WebServerPort <= 0 || cfg.Generic.WebServerPort > 65535 {
-		return fmt.Errorf("недопустимый порт веб-сервера: %d", cfg.Generic.WebServerPort)
+	if cfg.Generic.WebSrvPort <= 0 || cfg.Generic.WebSrvPort > 65535 {
+		return fmt.Errorf("недопустимый порт веб-сервера: %d", cfg.Generic.WebSrvPort)
 	}
 
 	// Проверка порогов диска и памяти
@@ -210,9 +206,9 @@ func validateConfig(cfg *models.Config) error {
 		return fmt.Errorf("критический порог RAM должен быть от 0 до 100%%")
 	}
 
-	// Проверка лимитов DragonflyDB
-	if cfg.DragonflyDB.BatchSize <= 0 {
-		return fmt.Errorf("размер пакета DragonflyDB (batch_size) должен быть больше 0")
+	// Проверка лимитов кэширующей СУБД
+	if cfg.CacheDb.BatchSize <= 0 {
+		return fmt.Errorf("размер пакета обработки кэшируюшей СУБД должен быть больше 0")
 	}
 
 	return nil

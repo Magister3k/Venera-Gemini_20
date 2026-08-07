@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"venera/config"
+	"venera/containers"
 	"venera/data"
 	"venera/diagnose"
 	"venera/logging"
@@ -39,8 +40,8 @@ func main() {
 		createCacheDb bool
 		removeCacheDb bool
 		createPgDb    bool
-		installSrv    bool
-		uninstallSrv  bool
+		installSvc    bool
+		uninstallSvc  bool
 	)
 
 	// Отображение справки
@@ -75,13 +76,13 @@ func main() {
 
 	// Установка службы Windows
 	flagMsg := "Установка службы Windows"
-	flag.BoolVar(&installSrv, "install-srv", false, flagMsg)
-	flag.BoolVar(&installSrv, "i", false, flagMsg)
+	flag.BoolVar(&installSvc, "install-svc", false, flagMsg)
+	flag.BoolVar(&installSvc, "i", false, flagMsg)
 
 	// Удаление службы Windows
 	flagMsg := "Удаление службы Windows"
-	flag.BoolVar(&uninstallSrv, "uninstall-srv", false, flagMsg)
-	flag.BoolVar(&uninstallSrv, "u", false, flagMsg)
+	flag.BoolVar(&uninstallSvc, "uninstall-svc", false, flagMsg)
+	flag.BoolVar(&uninstallSvc, "u", false, flagMsg)
 
 	// Настройка вывода справки
 	hlpStr := "Venera — Система сбора идентификаторов в потоке пакетных данных\n\n" +
@@ -110,10 +111,10 @@ func main() {
 			}
 			
 			// Соединяем флаги через запятую
-			flagsString := strings.Join(formattedNames, ", ")
+			flagsStr := strings.Join(formattedNames, ", ")
 			
 			// Печатаем в консоль с красивым выравниванием (\t — табуляция)
-			fmt.Fprintf(os.Stderr, "  %-25s %s\n", flagsString, usage)
+			fmt.Fprintf(os.Stderr, "  %-25s %s\n", flagsStr, usage)
 		}
 	}
 
@@ -130,10 +131,10 @@ func main() {
 	}
 
 	// Загрузка конфигурации
-	if err := config.LoadConfig(); err != nil {
+	if err := config.LoadCfg(); err != nil {
 		fmt.Printf("Ошибка загрузки конфигурации: %v\n", err)
 	}
-	cfg := config.GetConfig()
+	cfg := config.GetCfg()
 
 	// Скрываем консоль сразу, если режим tray и отключено отображение консоли при старте
 	if cfg.Generic.Mode == "tray" && !cfg.Generic.ShowConsoleOnStartup {
@@ -147,9 +148,9 @@ func main() {
 	}
 
 	// Обработка CLI команд управления
-	handleCLICommands(
+	handleCLICmds(
 		runDiagnose, createCacheDb, removeCacheDb, createPgDb,
-		installSrv, uninstallSrv, cfg,
+		installSvc, uninstallSvc, cfg
 	)
 
 	// Проверка прав администратора при запуске приложения
@@ -158,17 +159,16 @@ func main() {
 		logging.Log.Warn("Внимание: приложение запущено без прав Администратора.")
 	}
 
-	// Проверка наличия и запуск Podman
-	// В рамках основной логики запускаем кэш БД
-	setupCacheDbContainer(cfg.Paths)
+	// Запускаем кэширующую СУБД
+	containers.startCacheDb(cfg.Paths.Podman, cfg.Paths.CacheDbImage)
 
 	// Загрузка списков
-	_ = data.LoadFilters(cfg.Paths.FilterList)
-	_ = data.LoadControlList(cfg.Paths.ControlList)
-	_ = notify.LoadAlerts(cfg.Paths.AlertsList)
+	_ = data.LoadFilter(cfg.Paths.Filter)
+	_ = data.LoadControl(cfg.Paths.Control)
+	_ = notify.LoadAlerts(cfg.Paths.Alerts)
 
 	// Загрузка процессов
-	if err := processes.LoadProcesses(); err != nil {
+	if err := processes.LoadProcs(); err != nil {
 		logging.Log.Warnf("Ошибка загрузки списка процессов: %v", err)
 	}
 
@@ -179,7 +179,7 @@ func main() {
 
 	// Выбор режима запуска
 	if cfg.Generic.Mode == "service" {
-		err := services.RunService(startApplication, stopApplication)
+		err := services.RunSvc(startApplication, stopApplication)
 		if err != nil {
 			logging.Log.Fatalf("Ошибка запуска службы: %v", err)
 		}
@@ -193,32 +193,32 @@ func startApplication() {
 	// Подключение к кэширующей СУБД
 	if err := data.InitCacheDbConn(); err != nil {
 		logging.Log.Errorf("Ошибка подключения к кэширующей СУБД: %v", err)
-		tray.ShowErrorNotification("Нет связи с кэширующей СУБД")
+		utils.ShowBalloonNotify("Venera", "Нет связи с кэширующей СУБД")
 	}
 
-	// Подключение к итоговой СУБД
+	// Подключение к итоговой базе в СУБД PostgreSQL
 	if err := data.InitPgConn(); err != nil {
-		logging.Log.Errorf("Ошибка подключения к СУБД PostgreSQL: %v", err)
-		tray.ShowErrorNotification("Нет связи с СУБД PostgreSQL")
+		logging.Log.Errorf("Ошибка подключения к итоговой базе в СУБД PostgreSQL: %v", err)
+		utils.ShowBalloonNotify("Venera", "Нет связи с итоговой базой в СУБД PostgreSQL")
 	}
 
 	// Запуск фонового мониторинга и защиты
 	monitorCtx, monitorCancel := context.WithCancel(context.Background())
-	metrics.SetStopAllCallback(stopAllProcesses)
+	metrics.SetStopAllCallback(stopAllProcs)
 	go metrics.StartMonitor(monitorCtx)
 
 	// Запуск процессов, если включен автостарт
-	cfg := config.GetConfig()
+	cfg := config.GetCfg()
 	if cfg.Generic.AutoStart {
-		for _, p := range processes.GetAllProcesses() {
-			if err := processes.Manager.StartProcess(p); err != nil {
+		for _, p := range processes.GetAllProcs() {
+			if err := processes.Manager.StartProc(p); err != nil {
 				logging.Log.Errorf("Ошибка автостарта процесса %s: %v", p.ID, err)
 			}
 		}
 	}
 
 	// Старт веб-интерфейса
-	go web.StartWebServer()
+	go web.StartWebSrv()
 
 	// Graceful shutdown по сигналам Windows
 	go func() {
@@ -227,41 +227,41 @@ func startApplication() {
 		<-sigs
 		logging.Log.Infof("Получен сигнал завершения. Остановка...")
 		monitorCancel()
-		stopApplication()
+		stopApp()
 		os.Exit(0)
 	}()
 }
 
-func stopAllProcesses() {
-	for _, p := range processes.GetAllProcesses() {
+func stopAllProcs() {
+	for _, p := range processes.GetAllProcs() {
 		if string(p.Status) == "running" {
-			_ = processes.Manager.StopProcess(p.ID)
+			_ = processes.Manager.StopProc(p.ID)
 		}
 	}
 }
 
-func stopApplication() {
-	web.StopWebServer()
-	stopAllProcesses()
+func stopApp() {
+	web.StopWebSrv()
+	stopAllProcs()
 	data.CloseCacheDbConn()
 	data.ClosePgConn()
 	logging.Log.Infof("Venera успешно остановлена.")
 }
 
-// handleCLICommands обрабатывает эксклюзивные CLI команды
-func handleCLICommands(
+// handleCLICmds обрабатывает эксклюзивные CLI команды
+func handleCLICmds(
 	runDiagnose, createCacheDb, removeCacheDb, createPgDb,
-	installSrv, uninstallSrv bool, cfg models.Config) {
+	installSvc, uninstallSvc bool, cfg models.Config) {
 
 	if runDiagnose {
 		fmt.Println("Запуск полной диагностики системы...")
-		report, err := diagnose.RunDiagnosis()
+		report, err := diagnose.RunDiag()
 		if err != nil {
 			fmt.Printf("Критическая ошибка диагностики: %v\n", err)
 			os.Exit(1)
 		}
 
-		fmt.Printf("Диагностика завершена. Проверка RAM: %v, СУБД: %v\n", report.FreeRAMBytes, report.PGConnected)
+		fmt.Printf("Диагностика завершена. Проверка RAM: %v, СУБД: %v\n", report.FreeRAMBytes, report.PgConnected)
 
 		pdfPath := "Venera_Diagnostic_Report.pdf"
 		_ = diagnose.ExportReportPDF(report, pdfPath)
@@ -274,39 +274,49 @@ func handleCLICommands(
 	}
 
 	if createCacheDb {
-		fmt.Println("Создание контейнера кэширующей СУБД...")
-		utils.setupCacheDbContainer(cfg.Paths)
+		fmt.Println("Создание контейнера с кэширующей СУБД...")
+		containers.startCacheDb(cfg.Paths.Podman, cfg.Paths.CacheDbImage)
+		if err != nil {
+			fmt.Printf("Ошибка создания контейнера с кэширующей СУБД: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("Контейнер с кэширующей СУБД успешно создан.")
 		os.Exit(0)
 	}
 
 	if removeCacheDb {
-		fmt.Println("Удаление контейнера кэширующей СУБД...")
-		_ = exec.Command(cfg.Paths.PodmanExe, "rm", "-f", "cachedb").Run()
+		fmt.Println("Удаление контейнера с кэширующей СУБД...")
+		_ = exec.Command(cfg.Paths.Podman, "rm", "-f", "cachedb").Run()
+		if err != nil {
+			fmt.Printf("Ошибка удаления контейнера с кэширующей СУБД: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("Контейнер с кэширующей СУБД успешно удален.")
 		os.Exit(0)
 	}
 
 	if createPgDb {
-		fmt.Println("Инициализация базы в СУБД PostgreSQL...")
-		err := data.InitPGDatabase(&cfg.PostgreSQL)
+		fmt.Println("Создание итоговой базы в СУБД PostgreSQL...")
+		err := data.InitPgDb(&cfg.PostgreSQL)
 		if err != nil {
-			fmt.Printf("Ошибка создания базы в СУБД PostgreSQL: %v\n", err)
+			fmt.Printf("Ошибка создания итоговой базы в СУБД PostgreSQL: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Println("База данных успешно инициализирована.")
+		fmt.Println("Итоговая база данных успешно создана.")
 		os.Exit(0)
 	}
 
-	if installSrv {
-		if err := services.InstallService(); err != nil {
-			fmt.Printf("Ошибка установки службы: %v\n", err)
+	if installSvc {
+		if err := services.InstallSvc(); err != nil {
+			fmt.Printf("Ошибка установки службы Windows: %v\n", err)
 			os.Exit(1)
 		}
 		os.Exit(0)
 	}
 
-	if uninstallSrv {
-		if err := services.UninstallService(); err != nil {
-			fmt.Printf("Ошибка удаления службы: %v\n", err)
+	if uninstallSvc {
+		if err := services.UninstallSvc(); err != nil {
+			fmt.Printf("Ошибка удаления службы Windows: %v\n", err)
 			os.Exit(1)
 		}
 		os.Exit(0)

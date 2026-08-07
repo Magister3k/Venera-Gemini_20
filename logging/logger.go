@@ -42,7 +42,7 @@ func InitLogger() error {
 	Log.SetOutput(mw)
 
 	// Получаем потокобезопасную конфигурацию
-	cfg := config.GetConfig()
+	cfg := config.GetCfg()
 
 	// Интеграция с Windows Event Log
 	eventHook, err := NewEventLogHook("VeneraApp")
@@ -60,7 +60,7 @@ func InitLogger() error {
 
 	// Запуск ротации логов в фоне
 	// Используем дни из конфигурации. Если 0 - ставим дефолтные 7 дней
-	rotationDays := cfg.Generic.LogRotationDays
+	rotationDays := cfg.Generic.LogRotDays
 	if rotationDays <= 0 {
 		rotationDays = 7
 	}

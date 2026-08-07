@@ -18,7 +18,7 @@ import (
 
 // RunTsharkNetwork запускает Tshark для захвата с сетевого интерфейса
 func RunTsharkNetwork(ctx context.Context, ip string, port int, sourceID string, trigger func()) error {
-	exe := config.GlobalConfig.Paths.TsharkExe
+	exe := config.GlobalCfg.Paths.Tshark
 	filter := fmt.Sprintf("host %s and udp port %d", ip, port)
 	// -T ek выдает каждый JSON объект на новой строке (NDJSON)
 	args := []string{"-i", "any", "-f", filter, "-T", "ek"}
@@ -28,7 +28,7 @@ func RunTsharkNetwork(ctx context.Context, ip string, port int, sourceID string,
 
 // RunTsharkFileOrFolder запускает обработку отдельного файла или папки с файлами
 func RunTsharkFileOrFolder(ctx context.Context, p models.ProcessConfig, trigger func()) error {
-	exe := config.GlobalConfig.Paths.TsharkExe
+	exe := config.GlobalCfg.Paths.Tshark
 
 	if p.Type == models.SourceFile && p.FilePath != "" {
 		// Обработка одного файла
@@ -147,7 +147,7 @@ func runTsharkCommand(ctx context.Context, exe string, args []string, sourceID s
 		}
 	}()
 
-	batchSize := int64(config.GlobalConfig.DragonflyDB.BatchSize)
+	batchSize := int64(config.GlobalCfg.DragonflyDB.BatchSize)
 	var recordsAdded int64
 
 	scanner := bufio.NewScanner(stdout)

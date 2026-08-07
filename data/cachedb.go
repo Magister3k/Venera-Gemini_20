@@ -18,7 +18,7 @@ var (
 
 // InitCacheDbConn инициализирует подключение к кэширующей СУБД
 func InitCacheDbConn() error {
-	cfg := config.GlobalConfig.DragonflyDB
+	cfg := config.GlobalCfg.DragonflyDB
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 
 	// Повторные попытки подключения с экспоненциальной задержкой
