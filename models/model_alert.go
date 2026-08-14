@@ -4,7 +4,7 @@ package models
 type AlertRule struct {
 	ID         string // Уникальный идентификатор правила
 	Expression string // CEL выражение (например: "value == 'malicious' && source == 'net1'")
-	Message    string // Текст сообщения для пользователя
+	Msg        string // Текст сообщения для пользователя
 	Severity   string // Уровень критичности (info, warning, critical)
 }
 
@@ -12,8 +12,8 @@ type AlertRule struct {
 type AlertEvent struct {
 	RuleID    string // Ссылка на правило
 	Timestamp int64  // Время генерации алерта
-	Source    string // Источник данных, вызвавший алерт
+	Src       string // Источник данных, вызвавший алерт
 	Key       string // Ключ
 	Value     string // Подозрительное значение
-	Message   string // Готовое текстовое сообщение
+	Msg       string // Готовое текстовое сообщение
 }

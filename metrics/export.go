@@ -6,16 +6,16 @@ import (
 )
 
 var (
-	psapi                    = syscall.NewLazyDLL("psapi.dll")
-	procGetProcessMemoryInfo = psapi.NewProc("GetProcessMemoryInfo")
+	psapi              = syscall.NewLazyDLL("psapi.dll")
+	procGetProcMemInfo = psapi.NewProc("GetProcessMemoryInfo")
 )
 
 const (
-	processQueryInformation = 0x0400
-	processVMRead           = 0x0010
+	procQueryInfo = 0x0400
+	procVMRead    = 0x0010
 )
 
-type processMemoryCounters struct {
+type procMemCounters struct {
 	cb                         uint32
 	PageFaultCount             uint32
 	PeakWorkingSetSize         uint64 // в Windows x64 SIZE_T это 64 бита
@@ -28,19 +28,18 @@ type processMemoryCounters struct {
 	PeakPagefileUsage          uint64
 }
 
-// GetProcessRAM возвращает использование RAM (WorkingSetSize) процессом по его PID (в байтах)
-// Потребление RAM без сторонних библиотек.
-func GetProcessRAM(pid int) (uint64, error) {
-	handle, err := syscall.OpenProcess(processQueryInformation|processVMRead, false, uint32(pid))
+// GetProcRAM возвращает использование RAM процессом по его PID (в байтах)
+func GetProcRAM(pid int) (uint64, error) {
+	handle, err := syscall.OpenProcess(procQueryInfo|procVMRead, false, uint32(pid))
 	if err != nil {
 		return 0, err
 	}
 	defer syscall.CloseHandle(handle)
 
-	var counters processMemoryCounters
+	var counters procMemCounters
 	counters.cb = uint32(unsafe.Sizeof(counters))
 
-	ret, _, err := procGetProcessMemoryInfo.Call(
+	ret, _, err := procGetProcMemInfo.Call(
 		uintptr(handle),
 		uintptr(unsafe.Pointer(&counters)),
 		uintptr(counters.cb),

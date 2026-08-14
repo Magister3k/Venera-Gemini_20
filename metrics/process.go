@@ -9,7 +9,7 @@ import (
 var (
 	// procStats хранит статистику по процессам в реальном времени.
 	// Ключ - ID процесса.
-	procStats = make(map[string]*models.ProcMetrics)
+	procStats    = make(map[string]*models.ProcMetrics)
 	procStatsMu  sync.RWMutex
 )
 
@@ -20,7 +20,7 @@ func UpdProcSpeed(id string, speed float64) {
 	if _, ok := procStats[id]; !ok {
 		procStats[id] = &models.ProcMetrics{ProcID: id}
 	}
-	procStats[id].InputSpeedBps = speed
+	procStats[id].InSpeedBps = speed
 }
 
 // UpdProcResource обновляет данные RAM и CPU для процесса
@@ -31,7 +31,7 @@ func UpdProcResource(id string, ram uint64, cpu float64) {
 		procStats[id] = &models.ProcMetrics{ProcID: id}
 	}
 	procStats[id].RamConsumption = ram
-	procStats[id].CpuLoadPercent = cpu
+	procStats[id].CpuLoadPerc = cpu
 }
 
 // IncProcCounts обновляет счетчики обработанных сообщений
@@ -46,8 +46,8 @@ func IncProcCounts(id string, total, filtered, unique int64) {
 	procStats[id].UniquePairs += unique
 }
 
-// GetProcMetrics возвращает копию метрик процесса
-func GetProcMetrics() map[string]models.ProcMetrics {
+// GetProcsMetrics возвращает копию метрик процессов
+func GetProcsMetrics() map[string]models.ProcMetrics {
 	procStatsMu.RLock()
 	defer procStatsMu.RUnlock()
 

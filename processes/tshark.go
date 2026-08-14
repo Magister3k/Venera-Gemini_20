@@ -16,37 +16,37 @@ import (
 	"venera/models"
 )
 
-// RunTsharkNetwork запускает Tshark для захвата с сетевого интерфейса
-func RunTsharkNetwork(ctx context.Context, ip string, port int, sourceID string, trigger func()) error {
+// RunTsharkNet запускает Tshark для захвата с сетевого интерфейса
+func RunTsharkNet(ctx context.Context, ip string, port int, srcID string, trigger func()) error {
 	exe := config.GlobalCfg.Paths.Tshark
 	filter := fmt.Sprintf("host %s and udp port %d", ip, port)
 	// -T ek выдает каждый JSON объект на новой строке (NDJSON)
 	args := []string{"-i", "any", "-f", filter, "-T", "ek"}
 
-	return runTsharkCommand(ctx, exe, args, sourceID, trigger)
+	return runTsharkCmd(ctx, exe, args, srcID, trigger)
 }
 
-// RunTsharkFileOrFolder запускает обработку отдельного файла или папки с файлами
-func RunTsharkFileOrFolder(ctx context.Context, p models.ProcessConfig, trigger func()) error {
+// RunTsharkFileOrDir запускает обработку отдельного файла или папки с файлами
+func RunTsharkFileOrDir(ctx context.Context, p models.ProcCfg, trigger func()) error {
 	exe := config.GlobalCfg.Paths.Tshark
 
-	if p.Type == models.SourceFile && p.FilePath != "" {
+	if p.Type == models.SrcFile && p.FilePath != "" {
 		// Обработка одного файла
 		args := []string{"-r", p.FilePath, "-T", "ek"}
-		return runTsharkCommand(ctx, exe, args, p.ID, trigger)
+		return runTsharkCmd(ctx, exe, args, p.ID, trigger)
 	}
 
-	if p.Type == models.SourceFolder && p.FolderPath != "" {
+	if p.Type == models.SrcDir && p.DirPath != "" {
 		// Обработка файлов в папке
-		return processFolder(ctx, exe, p, trigger)
+		return procDir(ctx, exe, p, trigger)
 	}
 
 	return fmt.Errorf("не указан путь к файлу или папке для источника: %s", p.ID)
 }
 
-// processFolder обрабатывает папку с pcap файлами с учетом параметров подпапок и мониторинга
-func processFolder(ctx context.Context, exe string, p models.ProcessConfig, trigger func()) error {
-	processedFiles := make(map[string]bool)
+// procDir обрабатывает папку с pcap файлами с учетом параметров подпапок и мониторинга
+func procDir(ctx context.Context, exe string, p models.ProcCfg, trigger func()) error {
+	doneFiles := make(map[string]bool)
 
 	for {
 		select {
@@ -55,7 +55,7 @@ func processFolder(ctx context.Context, exe string, p models.ProcessConfig, trig
 		default:
 		}
 
-		var filesToProcess []string
+		var inFiles []string
 
 		// Функция обхода файлов
 		walkFunc := func(path string, info os.FileInfo, err error) error {
@@ -63,7 +63,7 @@ func processFolder(ctx context.Context, exe string, p models.ProcessConfig, trig
 				return err
 			}
 			if info.IsDir() {
-				if path != p.FolderPath && !p.ScanSubfolders {
+				if path != p.DirPath && !p.ScanSubdirs {
 					return filepath.SkipDir // Пропускаем подпапки, если выключено
 				}
 				return nil
@@ -71,19 +71,19 @@ func processFolder(ctx context.Context, exe string, p models.ProcessConfig, trig
 
 			// Проверяем расширения (для pcap/pcapng) и то, что файл еще не обработан
 			ext := filepath.Ext(path)
-			if (ext == ".pcap" || ext == ".pcapng") && !processedFiles[path] {
-				filesToProcess = append(filesToProcess, path)
+			if (ext == ".pcap" || ext == ".pcapng") && !doneFiles[path] {
+				inFiles = append(inFiles, path)
 			}
 			return nil
 		}
 
-		err := filepath.Walk(p.FolderPath, walkFunc)
+		err := filepath.Walk(p.DirPath, walkFunc)
 		if err != nil {
-			logging.Log.Errorf("Ошибка сканирования папки %s: %v", p.FolderPath, err)
+			logging.Log.Errorf("Ошибка сканирования папки %s: %v", p.DirPath, err)
 		}
 
 		// Обрабатываем найденные файлы последовательно
-		for _, file := range filesToProcess {
+		for _, file := range inFiles {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
@@ -92,12 +92,12 @@ func processFolder(ctx context.Context, exe string, p models.ProcessConfig, trig
 
 			logging.Log.Infof("Обработка файла из папки: %s", file)
 			args := []string{"-r", file, "-T", "ek"}
-			err = runTsharkCommand(ctx, exe, args, p.ID, trigger)
+			err = runTsharkCmd(ctx, exe, args, p.ID, trigger)
 			if err != nil && err != context.Canceled {
 				logging.Log.Warnf("Ошибка обработки файла %s: %v", file, err)
 			}
 
-			processedFiles[file] = true // Отмечаем как обработанный
+			doneFiles[file] = true // Отмечаем как обработанный
 		}
 
 		// Если мониторинг новых файлов выключен, выходим после одного прохода
@@ -112,8 +112,8 @@ func processFolder(ctx context.Context, exe string, p models.ProcessConfig, trig
 	return nil
 }
 
-// runTsharkCommand запускает команду Tshark и читает её STDOUT
-func runTsharkCommand(ctx context.Context, exe string, args []string, sourceID string, trigger func()) error {
+// runTsharkCmd запускает команду Tshark и читает её STDOUT
+func runTsharkCmd(ctx context.Context, exe string, args []string, srcID string, trigger func()) error {
 	cmd := exec.CommandContext(ctx, exe, args...)
 
 	// Настройка для Windows: Job Objects или группы процессов (защита от зомби-процессов Tshark)
@@ -143,12 +143,12 @@ func runTsharkCommand(ctx context.Context, exe string, args []string, sourceID s
 		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
 			errText := scanner.Text()
-			logging.Log.Warnf("Tshark [%s] stderr: %s", sourceID, errText)
+			logging.Log.Warnf("Tshark [%s] stderr: %s", srcID, errText)
 		}
 	}()
 
-	batchSize := int64(config.GlobalCfg.DragonflyDB.BatchSize)
-	var recordsAdded int64
+	batchSize := int64(config.GlobalCfg.CacheDb.BatchSize)
+	var recsAdded int64
 
 	scanner := bufio.NewScanner(stdout)
 	// Увеличиваем буфер, так как JSON строки могут быть длинными
@@ -170,15 +170,15 @@ func runTsharkCommand(ctx context.Context, exe string, args []string, sourceID s
 			continue
 		}
 
-		// Пачки в кэширующей СУБД
-		err = data.PushBatchToList(sourceID, pairs)
+		// Добавление пачки данных в кэширующую СУБД
+		err = data.PushBatchToList(srcID, pairs)
 		if err != nil {
-			logging.Log.Errorf("Ошибка добавления пачки в кэширующую СУБД: %v", err)
+			logging.Log.Errorf("Ошибка добавления данных в кэширующую СУБД: %v", err)
 		} else {
-			recordsAdded += int64(len(pairs))
-			if recordsAdded >= batchSize {
+			recsAdded += int64(len(pairs))
+			if recsAdded >= batchSize {
 				trigger() // Вызов канала порогового значения
-				recordsAdded = 0
+				recsAdded = 0
 			}
 		}
 	}
@@ -196,3 +196,4 @@ func runTsharkCommand(ctx context.Context, exe string, args []string, sourceID s
 
 	return cmd.Wait()
 }
+

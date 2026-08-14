@@ -29,10 +29,10 @@ type DiagReport struct {
 	ManifestRegistered    bool
 	ManifestVersion       string
 	FreeRAMBytes          uint64
-	FreeRAMPercent        float64
+	FreeRAMPerc           float64
 	TargetDbDiskFreeBytes uint64
 	CacheDbDiskFreeBytes  uint64
-	NetworkInterfaces     []string
+	NetInterfaces         []string
 	TsharkExists          bool
 	PodmanExists          bool
 	CacheDbImageExist     bool
@@ -52,7 +52,7 @@ func RunDiag() (*DiagReport, error) {
 	cfg := config.GlobalCfg
 
 	// Проверка наличия файла конфигурации
-	if _, err := os.Stat(config.ConfigPath); err == nil {
+	if _, err := os.Stat(config.CfgPath); err == nil {
 		report.CfgExists = true
 	}
 
@@ -67,16 +67,16 @@ func RunDiag() (*DiagReport, error) {
 	}
 
 	// Объемы RAM и дисков
-	ram, ramPct, _ := metrics.GetSystemRAM()
+	ram, ramPct, _ := metrics.GetSysRAM()
 	report.FreeRAMBytes = ram
-	report.FreeRAMPercent = ramPct
+	report.FreeRAMPerc = ramPct
 
 	// TODO: определять путь к диску с итоговой базой средствами СУБД PostgreSQL
 	pgDiskPath := "C:\\" // Default fallback
 	if cfg.PostgreSQL.Host == "127.0.0.1" || cfg.PostgreSQL.Host == "localhost" {
 		pgDiskPath = "C:\\" // Условно диск C для локальной БД
 	}
-	cacheDbDiskPath := cfg.Paths.DbBackupDir
+	cacheDbDiskPath := cfg.Paths.CacheDir
 	if cacheDbDiskPath == "" {
 		cacheDbDiskPath = "."
 	}
@@ -90,7 +90,7 @@ func RunDiag() (*DiagReport, error) {
 	report.CacheDbDiskFreeBytes = cacheDbFree
 
 	// Список сетевых адаптеров
-	ifaces, _ := metrics.GetNetworkInterfaces()
+	ifaces, _ := metrics.GetNetInterfaces()
 	report.NetworkInterfaces = ifaces
 
 	// Наличие исполняемых файлов
@@ -122,18 +122,18 @@ func RunDiag() (*DiagReport, error) {
 	return report, nil
 }
 
-func fileExists(path string) bool {
+func FileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }
 
-func checkCommand(cmd string) bool {
+func CheckCmd(cmd string) bool {
 	_, err := exec.LookPath(cmd)
 	return err == nil
 }
 
-// getEventLogErrors получает последние 10 ошибок из лога Application (Windows)
-func getEventLogErrors() []string {
+// GetLastEventLogErrors получает последние 10 ошибок из лога Application в Windows
+func GetLastEventLogErrors() []string {
 	// Простейший способ без CGO - вызвать powershell
 	psCmd := `Get-EventLog -LogName Application -EntryType Error -Newest 10 | Select-Object -ExpandProperty Message`
 	cmd := exec.Command("powershell", "-NoProfile", "-Command", psCmd)
@@ -202,7 +202,7 @@ func ExportReportPDF(report *DiagReport, outputPath string) error {
 	pdf.SetFont("Arial", "", 12)
 
 	addLine("Свободная ОЗУ (MB)", fmt.Sprintf("%d", report.FreeRAMBytes/(1024*1024)))
-	addLine("Свободная ОЗУ (%)", fmt.Sprintf("%.2f%%", report.FreeRAMPercent))
+	addLine("Свободная ОЗУ (%)", fmt.Sprintf("%.2f%%", report.FreeRAMPerc))
 	addLine("Свободное место на диске с итоговой БД (MB)", fmt.Sprintf("%d", report.TargetDbDiskFreeBytes/(1024*1024)))
 	addLine("Свободное место на диске с бэкапом кэширующей СУБД (MB)", fmt.Sprintf("%d", report.CacheDbDiskFreeBytes/(1024*1024)))
 
@@ -225,8 +225,8 @@ func ExportReportPDF(report *DiagReport, outputPath string) error {
 	return nil
 }
 
-// CreateArchiveGZ создает архив (tar.gz) с логами, отчётом и конфигами
-func CreateArchiveGZ(pdfReportPath, outputPath string) error {
+// CreateArchGz создает архив (tar.gz) с логами, отчётом и конфигами
+func CreateArchGz(pdfReportPath, outputPath string) error {
 	outFile, err := os.Create(outputPath)
 	if err != nil {
 		return err

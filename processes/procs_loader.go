@@ -7,73 +7,74 @@ import (
 	"sync"
 
 	"github.com/BurntSushi/toml"
+
 	"venera/models"
 )
 
 var (
-	processesMap = make(map[string]models.ProcessConfig)
-	processesMu  sync.RWMutex
-	ProcsPath    string
+	procsMap  = make(map[string]models.ProcCfg)
+	procsMu   sync.RWMutex
+	procsPath string
 )
 
-func init() {
+func InitProcFile() {
 	// Определение пути к processes.toml относительно исполняемого файла
 	// Это важно при запуске в виде службы.
 	exePath, err := os.Executable()
 	if err == nil {
-		ProcsPath = filepath.Join(filepath.Dir(exePath), "processes.toml")
+		procsPath = filepath.Join(filepath.Dir(exePath), "processes.toml")
 	} else {
-		// Fallback
-		ProcsPath = "processes.toml"
+		// В случае ошибки
+		procsPath = "processes.toml"
 	}
 }
 
-// LoadProcesses загружает список процессов из файла в формате TOML (processes.toml).
-func LoadProcesses() error {
-	processesMu.Lock()
-	defer processesMu.Unlock()
+// LoadProcs загружает список процессов из файла в формате TOML (processes.toml).
+func LoadProcs() error {
+	procsMu.Lock()
+	defer procsMu.Unlock()
 
-	processesMap = make(map[string]models.ProcessConfig)
+	procsMap = make(map[string]models.ProcCfg)
 
-	if _, err := os.Stat(ProcsPath); os.IsNotExist(err) {
+	if _, err := os.Stat(procsPath); os.IsNotExist(err) {
 		// Файла нет - нормальная ситуация
 		return nil
 	}
 
-	var pf models.ProcessesFile
-	_, err := toml.DecodeFile(ProcsPath, &pf)
+	var pf models.ProcsFile
+	_, err := toml.DecodeFile(procsPath, &pf)
 	if err != nil {
 		return fmt.Errorf("ошибка парсинга processes.toml: %v", err)
 	}
 
-	for k, v := range pf.Processes {
+	for k, v := range pf.Procs {
 		v.ID = k                             // Убеждаемся, что ID совпадает с ключом
 		v.Status = models.StatusStopped      // При загрузке все остановлены
-		processesMap[k] = v
+		procsMap[k] = v
 	}
 
 	return nil
 }
 
-// SaveProcesses сохраняет список процессов в файл processes.toml
-func SaveProcesses() error {
-	processesMu.RLock()
-	defer processesMu.RUnlock()
+// SaveProcs сохраняет список процессов в файл processes.toml
+func SaveProcs() error {
+	procsMu.RLock()
+	defer procsMu.RUnlock()
 
-	pf := models.ProcessesFile{
-		Processes: make(map[string]models.ProcessConfig),
+	pf := models.ProcsFile{
+		Procs: make(map[string]models.ProcCfg),
 	}
 
-	for k, v := range processesMap {
-		pf.Processes[k] = v
+	for k, v := range procsMap {
+		pf.Procs[k] = v
 	}
 
 	// Для надежности создадим резервную копию (отказоустойчивость)
-	if _, err := os.Stat(ProcsPath); err == nil {
-		_ = os.Rename(ProcsPath, ProcsPath+".bak")
+	if _, err := os.Stat(procsPath); err == nil {
+		_ = os.Rename(procsPath, procsPath+".bak")
 	}
 
-	file, err := os.Create(ProcsPath)
+	file, err := os.Create(procsPath)
 	if err != nil {
 		return fmt.Errorf("ошибка создания processes.toml: %v", err)
 	}
@@ -87,55 +88,55 @@ func SaveProcesses() error {
 	return nil
 }
 
-// GetProcess возвращает конфигурацию процесса по ID
-func GetProcess(id string) (models.ProcessConfig, bool) {
-	processesMu.RLock()
-	defer processesMu.RUnlock()
-	p, ok := processesMap[id]
+// GetProc возвращает конфигурацию процесса по ID
+func GetProc(id string) (models.ProcCfg, bool) {
+	procsMu.RLock()
+	defer procsMu.RUnlock()
+	p, ok := procsMap[id]
 	return p, ok
 }
 
-// GetAllProcesses возвращает список всех процессов
-func GetAllProcesses() []models.ProcessConfig {
-	processesMu.RLock()
-	defer processesMu.RUnlock()
-	var list []models.ProcessConfig
-	for _, p := range processesMap {
+// GetAllProcs возвращает список всех процессов
+func GetAllProcs() []models.ProcCfg {
+	procsMu.RLock()
+	defer procsMu.RUnlock()
+	var list []models.ProcCfg
+	for _, p := range procsMap {
 		list = append(list, p)
 	}
 	return list
 }
 
-// AddOrUpdateProcess добавляет или обновляет процесс и сохраняет в файл
-func AddOrUpdateProcess(p models.ProcessConfig) error {
-	processesMu.Lock()
+// AddOrUpdProc добавляет или обновляет процесс и сохраняет в файл
+func AddOrUpdProc(p models.ProcCfg) error {
+	procsMu.Lock()
 	if p.ID == "" {
-		processesMu.Unlock()
+		procsMu.Unlock()
 		return fmt.Errorf("ID процесса не может быть пустым")
 	}
 	if p.Status == "" {
 		p.Status = models.StatusStopped
 	}
-	processesMap[p.ID] = p
-	processesMu.Unlock()
-	return SaveProcesses()
+	procsMap[p.ID] = p
+	procsMu.Unlock()
+	return SaveProcs()
 }
 
-// RemoveProcess удаляет процесс и сохраняет изменения
-func RemoveProcess(id string) error {
-	processesMu.Lock()
-	delete(processesMap, id)
-	processesMu.Unlock()
-	return SaveProcesses()
+// DelProc удаляет процесс и сохраняет изменения
+func DelProc(id string) error {
+	procsMu.Lock()
+	delete(procsMap, id)
+	procsMu.Unlock()
+	return SaveProcs()
 }
 
-// UpdateProcessStatus обновляет только статус процесса (в памяти)
-func UpdateProcessStatus(id string, status models.ProcessStatus) {
-	processesMu.Lock()
-	defer processesMu.Unlock()
-	if p, ok := processesMap[id]; ok {
+// UpdProcStatus обновляет только статус процесса (в памяти)
+func UpdProcStatus(id string, status models.ProcStatus) {
+	procsMu.Lock()
+	defer procsMu.Unlock()
+	if p, ok := procsMap[id]; ok {
 		p.Status = status
-		processesMap[id] = p
+		procsMap[id] = p
 	}
 }
 

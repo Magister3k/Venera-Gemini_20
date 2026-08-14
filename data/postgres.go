@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
 	"venera/config"
 	"venera/logging"
 	"venera/models"
@@ -18,7 +19,7 @@ var (
 
 // InitPgConn инициализирует пул подключений к базе
 func InitPgConn() error {
-	cfg := config.GlobalCfg.PostgreSQL
+	cfg := config.GlobalCfg.PgDb
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
 		cfg.User, cfg.Pass, cfg.Host, cfg.Port, cfg.Name, cfg.SSLMode)
 
@@ -49,8 +50,8 @@ func InitPgConn() error {
 	return fmt.Errorf("не удалось подключиться к итоговой базе в СУБД PostgreSQL после 5 попыток: %w", err)
 }
 
-// InsBatch выполняет пакетную вставку или обновление данных
-func InsBatch(sourceID string, entries []DataEntry) error {
+// InsBatchInPg выполняет пакетную вставку или обновление данных
+func InsBatchInPg(srcID string, entries []models.DataEntry) error {
 	if len(entries) == 0 {
 		return nil
 	}
@@ -64,7 +65,7 @@ func InsBatch(sourceID string, entries []DataEntry) error {
 	// SQL-запрос (UPSERT).
 	// Используем to_timestamp($4::double precision) для сохранения миллисекунд
 	query := `
-		INSERT INTO venera_data (source, key, value, date_first, date_last)
+		INSERT INTO venera (source, key, value, date_first, date_last)
 		VALUES ($1, $2, $3, to_timestamp($4::double precision), to_timestamp($4::double precision))
 		ON CONFLICT (source, key, value) 
 		DO UPDATE SET date_last = GREATEST(venera_data.date_last, to_timestamp($4::double precision));
@@ -72,7 +73,7 @@ func InsBatch(sourceID string, entries []DataEntry) error {
 
 	for _, entry := range entries {
 		tsSeconds := float64(entry.Timestamp) / 1000.0
-		batch.Queue(query, entry.Source, entry.Key, entry.Value, tsSeconds)
+		batch.Queue(query, entry.Src, entry.Key, entry.Value, tsSeconds)
 	}
 
 	br := PgPool.SendBatch(ctx, batch)

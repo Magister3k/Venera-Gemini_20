@@ -24,7 +24,7 @@ func startCacheDb(pathPodman, pathImage string) {
 		}
 	}
 	if !ok {
-		utils.ShowBalloonNotify("Venera", "Ошибка запуска кэширующей СУБД")
+		utils.ShowBalloonNotification("Venera", "Ошибка запуска кэширующей СУБД")
 	}
 }
 

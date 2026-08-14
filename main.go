@@ -189,17 +189,17 @@ func main() {
 	}
 }
 
-func startApplication() {
+func StartApp() {
 	// Подключение к кэширующей СУБД
 	if err := data.InitCacheDbConn(); err != nil {
 		logging.Log.Errorf("Ошибка подключения к кэширующей СУБД: %v", err)
-		utils.ShowBalloonNotify("Venera", "Нет связи с кэширующей СУБД")
+		utils.ShowBalloonNotification("Venera", "Нет связи с кэширующей СУБД")
 	}
 
 	// Подключение к итоговой базе в СУБД PostgreSQL
 	if err := data.InitPgConn(); err != nil {
 		logging.Log.Errorf("Ошибка подключения к итоговой базе в СУБД PostgreSQL: %v", err)
-		utils.ShowBalloonNotify("Venera", "Нет связи с итоговой базой в СУБД PostgreSQL")
+		utils.ShowBalloonNotification("Venera", "Нет связи с итоговой базой в СУБД PostgreSQL")
 	}
 
 	// Запуск фонового мониторинга и защиты
@@ -232,7 +232,7 @@ func startApplication() {
 	}()
 }
 
-func stopAllProcs() {
+func StopAllProcs() {
 	for _, p := range processes.GetAllProcs() {
 		if string(p.Status) == "running" {
 			_ = processes.Manager.StopProc(p.ID)
@@ -240,16 +240,16 @@ func stopAllProcs() {
 	}
 }
 
-func stopApp() {
+func StopApp() {
 	web.StopWebSrv()
-	stopAllProcs()
+	StopAllProcs()
 	data.CloseCacheDbConn()
 	data.ClosePgConn()
 	logging.Log.Infof("Venera успешно остановлена.")
 }
 
-// handleCLICmds обрабатывает эксклюзивные CLI команды
-func handleCLICmds(
+// HandleCLICmds обрабатывает эксклюзивные CLI команды
+func HandleCLICmds(
 	runDiagnose, createCacheDb, removeCacheDb, createPgDb,
 	installSvc, uninstallSvc bool, cfg models.Config) {
 

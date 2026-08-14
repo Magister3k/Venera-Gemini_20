@@ -72,7 +72,7 @@ func ParseJSONToPairs(jsonData []byte, timestamp int64) ([]string, error) {
 	return pairs, nil
 }
 
-// ImprovedParseEntry - улучшенная версия ParseEntry из dragonfly.go
+// ImprovedParseEntry - улучшенная версия ParseEntry из cachedb.go
 // которая корректно обрабатывает значения, содержащие двоеточия.
 func ImprovedParseEntry(entry string) (string, string, int64, error) {
 	// Формат: "ключ:значение:время"

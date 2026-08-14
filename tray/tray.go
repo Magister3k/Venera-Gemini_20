@@ -57,7 +57,7 @@ func onReady() {
 		systray.AddSeparator()
 
 		logging.Log.Warn("Приложение запущено без прав Администратора")
-		utils.ShowBalloonNotify("Venera", "Приложение запущено без прав Администратора. Некоторые функции могут быть недоступны.")
+		utils.ShowBalloonNotification("Venera", "Приложение запущено без прав Администратора. Некоторые функции могут быть недоступны.")
 	}
 
 	// Меню управления
@@ -138,5 +138,5 @@ func openWebInterface() {
 	}()
 
 	// Выводим системный Balloon
-	utils.ShowBalloonNotify("Venera", msg)
+	utils.ShowBalloonNotification("Venera", msg)
 }*/

@@ -29,7 +29,7 @@ func TestModelsInitialization(t *testing.T) {
 	if models.StatusRunning != "running" {
 		t.Errorf("Ожидался статус running")
 	}
-	if models.SourceNetwork != "network" {
+	if models.SrcNet != "network" {
 		t.Errorf("Ожидался тип источника network")
 	}
 }

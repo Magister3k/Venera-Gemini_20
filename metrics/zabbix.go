@@ -23,5 +23,3 @@ func ZabbixExportHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write(jsonData)
 }
-
-// Описание шаблона конфигурации Zabbix UserParameter или HTTP Agent можно найти в файле README

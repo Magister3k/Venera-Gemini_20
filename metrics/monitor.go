@@ -5,17 +5,18 @@ import (
 	"time"
 
 	"venera/logging"
-	"venera/tray"
+	"venera/processes"
+	"venera/utils"
 )
 
 var (
 	// callback на остановку всех процессов из менеджера (решение циклических зависимостей)
-	stopAllProcesses func()
+	stopAllProcs func()
 )
 
 // SetStopAllCallback устанавливает функцию для остановки всех процессов
 func SetStopAllCallback(fn func()) {
-	stopAllProcesses = fn
+	stopAllProcs = fn
 }
 
 // StartMonitor запускает фоновый процесс мониторинга системных порогов
@@ -23,7 +24,7 @@ func StartMonitor(ctx context.Context) {
 	ticker := time.NewTicker(10 * time.Second) // Проверка каждые 10 секунд
 	defer ticker.Stop()
 
-	warningSent := false
+	warnSent := false
 
 	for {
 		select {
@@ -31,30 +32,30 @@ func StartMonitor(ctx context.Context) {
 			return
 		case <-ticker.C:
 			// Остановка всех процессов с выводом сообщения при достижении критических порогов
-			// свободного места на диске с итоговой базой в СУБД PostgreSQL и объема ОЗУ на ПК с программой
+			// свободного места на диске с итоговой БД и объема ОЗУ на ПК с программой
 			critical, msg := ProtectSystem()
 			if critical {
 				logging.Log.Error(msg)
-				utils.ShowBalloonNotify("Venera", msg)
+				utils.ShowBalloonNotification("Venera", msg)
 
-				if stopAllProcesses != nil {
+				if processes.GetAlLProcs() != nil {
 					logging.Log.Warn("Сработала защита от переполнения: автоматическая остановка всех процессов")
-					stopAllProcesses()
+					StopAllProcs()
 				}
 				continue
 			}
 
 			// Вывод сообщения пользователю при достижении опасного порога свободного места на диске
 			// с итоговой базой в СУБД PostgreSQL
-			if CheckDiskWarning() {
-				if !warningSent {
+			if CheckDiskWarn() {
+				if !warnSent {
 					msg := "Внимание: мало свободного места на диске с итоговой базой в СУБД PostgreSQL!"
 					logging.Log.Warn(msg)
-					utils.ShowBalloonNotify("Venera", msg)
-					warningSent = true // Чтобы не спамить
+					utils.ShowBalloonNotification("Venera", msg)
+					warnSent = true // Чтобы не спамить
 				}
 			} else {
-				warningSent = false
+				warnSent = false
 			}
 		}
 	}

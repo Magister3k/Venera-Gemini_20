@@ -7,18 +7,19 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+
 	"venera/config"
 	"venera/logging"
 )
 
 var (
 	CacheDbClient *redis.Client
-	ctx             = context.Background()
+	ctx           = context.Background()
 )
 
 // InitCacheDbConn инициализирует подключение к кэширующей СУБД
 func InitCacheDbConn() error {
-	cfg := config.GlobalCfg.DragonflyDB
+	cfg := config.GlobalCfg.CacheDb
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 
 	// Повторные попытки подключения с экспоненциальной задержкой
@@ -28,7 +29,7 @@ func InitCacheDbConn() error {
 	for i := 0; i < 5; i++ {
 		CacheDbClient = redis.NewClient(&redis.Options{
 			Addr:     addr,
-			Password: cfg.Password,
+			Password: cfg.Pass,
 			DB:       0, // use default DB
 		})
 
@@ -38,7 +39,7 @@ func InitCacheDbConn() error {
 			return nil
 		}
 
-		logging.Log.Warnf("Ошибка подключения к кэширующей СУБД (попытка %d/5): %v", i+1, err)
+		logging.Log.Errorf("Ошибка подключения к кэширующей СУБД (попытка %d/5): %v", i+1, err)
 		time.Sleep(delay)
 		delay *= 2
 	}
@@ -46,40 +47,40 @@ func InitCacheDbConn() error {
 	return fmt.Errorf("не удалось подключиться к кэширующей СУБД после 5 попыток: %w", err)
 }
 
-// PushToList добавляет запись в список (List) для конкретного источника.
+// PushBatchToList добавляет пакет записей в структуру List
 // Формат: "ключ:значение:время"
-func PushToList(sourceID, data string) error {
-	listKey := "list:" + sourceID
+func PushBatchToList(srcID string, data []string) error {
+	listKey := "list:" + srcID
 	err := CacheDbClient.RPush(ctx, listKey, data).Err()
 	if err != nil {
-		return fmt.Errorf("ошибка при добавлении в list %s: %v", listKey, err)
+		return fmt.Errorf("при добавлении пакета данных в структуру List: %v", err)
 	}
 	return nil
 }
 
-// GetListLength возвращает текущую длину списка
-func GetListLength(sourceID string) (int64, error) {
-	listKey := "list:" + sourceID
+// GetListLen возвращает текущую длину структуры List
+func GetListLen(srcID string) (int64, error) {
+	listKey := "list:" + srcID
 	return CacheDbClient.LLen(ctx, listKey).Result()
 }
 
-// PopBatchFromList извлекает до n записей из списка
-func PopBatchFromList(sourceID string, count int64) ([]string, error) {
-	listKey := "list:" + sourceID
+// PopBatchFromList извлекает пакет записей из структуры List
+func PopBatchFromList(srcID string, count int64) ([]string, error) {
+	listKey := "list:" + srcID
 	
 	// Используем транзакцию (pipeline) для получения диапазона и его удаления (LPop count доступно в Redis 6.2+)
 	// Для совместимости с DragonflyDB используем LPOP с параметром count
 	res, err := CacheDbClient.LPopCount(ctx, listKey, int(count)).Result()
 	if err != nil && err != redis.Nil {
-		return nil, fmt.Errorf("ошибка при извлечении пакета из %s: %v", listKey, err)
+		return nil, fmt.Errorf("при извлечении пакета данных из структуры List: %v", err)
 	}
 	return res, nil
 }
 
-// AddToSortedSet добавляет отфильтрованную пару в Sorted Set.
-// Мы используем sourceID как часть ключа, а само значение (ключ:значение) как member, время как score
-func AddToSortedSet(sourceID string, key, value string, timestamp int64) error {
-	setKey := "ss:" + sourceID
+// AddToSortedSet добавляет отфильтрованную пару в структуру Sorted Set
+// Мы используем srcID как часть ключа, а само значение (ключ:значение) как member, время как score
+func AddToSortedSet(srcID string, key, value string, timestamp int64) error {
+	setKey := "ss:" + srcID
 	member := fmt.Sprintf("%s:%s", key, value)
 	
 	err := CacheDbClient.ZAdd(ctx, setKey, redis.Z{
@@ -88,14 +89,14 @@ func AddToSortedSet(sourceID string, key, value string, timestamp int64) error {
 	}).Err()
 	
 	if err != nil {
-		return fmt.Errorf("ошибка при добавлении в sorted set %s: %v", setKey, err)
+		return fmt.Errorf("при добавлении данных в структуру Sorted Set: %v", err)
 	}
 	return nil
 }
 
 // GetAndClearSortedSet извлекает все данные из Sorted Set и очищает его
-func GetAndClearSortedSet(sourceID string) ([]redis.Z, error) {
-	setKey := "ss:" + sourceID
+func GetAndClearSortedSet(srcID string) ([]redis.Z, error) {
+	setKey := "ss:" + srcID
 	
 	// Используем ZRange с удалением (если поддерживается, иначе Pipeline)
 	// Для простоты используем Pipeline: ZRange -> Del
@@ -106,7 +107,7 @@ func GetAndClearSortedSet(sourceID string) ([]redis.Z, error) {
 	
 	_, err := pipe.Exec(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка при извлечении из sorted set %s: %v", setKey, err)
+		return nil, fmt.Errorf("при извлечении данных из структуры Sorted Set: %v", err)
 	}
 	
 	return rangeCmd.Val(), nil
@@ -116,7 +117,7 @@ func GetAndClearSortedSet(sourceID string) ([]redis.Z, error) {
 func ParseEntry(entry string) (string, string, string, error) {
 	parts := strings.SplitN(entry, ":", 3)
 	if len(parts) != 3 {
-		return "", "", "", fmt.Errorf("неверный формат записи: %s", entry)
+		return "", "", "", fmt.Errorf("неверный формат")
 	}
 	return parts[0], parts[1], parts[2], nil
 }

@@ -22,40 +22,40 @@ func init() {
 	logging.Log.SetOutput(os.Stdout)
 }
 
-// TestProcessManagerIntegration тестирует интеграцию ProcessManager с фильтрами и конфигурацией
+// TestProcManagerIntegration тестирует интеграцию ProcManager с фильтрами и конфигурацией
 // Цель: Проверить корректное взаимодействие между модулем процессов,
 // модулем конфигурации и фильтрацией без реального запуска Tshark.
-func TestProcessManagerIntegration(t *testing.T) {
-	t.Log("Запуск интеграционного теста ProcessManager")
+func TestProcManagerIntegration(t *testing.T) {
+	t.Log("Запуск интеграционного теста ProcManager")
 
 	// Инициализация временной конфигурации
-	config.GlobalCfg = config.DefaultConfig()
-	config.GlobalCfg.Generic.MaxProcesses = 2
+	config.GlobalCfg = config.DefaultCfg()
+	config.GlobalCfg.Generic.MaxProcs = 2
 
 	// Инициализация менеджера (он глобальный, но мы тестируем его логику)
-	manager := processes.NewProcessManager()
+	manager := processes.NewProcManager()
 
 	// Добавляем фейковый процесс
 	procID := utils.GenerateID()
-	pConfig := models.ProcessConfig{
+	pConfig := models.ProcCfg{
 		ID:     procID,
 		Name:   "TestIntegrationProc",
-		Type:   models.SourceNetwork,
+		Type:   models.SrcNet,
 		Status: models.StatusStopped,
 	}
 
 	// Попытка старта процесса
-	// Поскольку внутри StartProcess запускается Tshark через runCollectionProcess,
+	// Поскольку внутри StartProc запускается Tshark через runCollectionProcess,
 	// который будет пытаться запустить реальный экзешник, мы просто проверим
 	// базовую защиту от двойного старта (так как Tshark=tshark упадет, но процесс в мапе сохранится).
 
-	err := manager.StartProcess(pConfig)
+	err := manager.StartProc(pConfig)
 	if err != nil {
 		t.Logf("Ожидаемая ошибка (может быть из-за отсутствия tshark): %v", err)
 	}
 
 	// Попытка запустить тот же процесс повторно должна вернуть ошибку сразу из мапы
-	errDouble := manager.StartProcess(pConfig)
+	errDouble := manager.StartProc(pConfig)
 	if errDouble == nil {
 		t.Error("Ожидалась ошибка при двойном запуске процесса")
 	}
@@ -68,7 +68,7 @@ func TestProcessManagerIntegration(t *testing.T) {
 	}
 
 	// Остановка
-	errStop := manager.StopProcess(procID)
+	errStop := manager.StopProc(procID)
 	if errStop != nil {
 		t.Logf("Ожидаемая ошибка остановки (если контекст уже отменен): %v", errStop)
 	}

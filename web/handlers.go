@@ -20,44 +20,44 @@ func SetupRoutes(app *fiber.App) {
 	api := app.Group("/api")
 
 	// --- Процессы ---
-	api.Get("/processes", apiGetProcesses)
-	api.Post("/processes", apiAddProcess)
-	api.Delete("/processes/:id", apiDeleteProcess)
-	api.Post("/process/:id/action", apiProcessAction)
-	api.Post("/processes/actions", apiGroupProcessAction)
+	api.Get("/processes", apiGetAllProcs)
+	api.Post("/processes", apiAddProc)
+	api.Delete("/processes/:id", apiDelProc)
+	api.Post("/process/:id/action", apiProcAction)
+	api.Post("/processes/actions", apiAllProcsAction)
 
 	// --- Настройки ---
 	api.Get("/config", apiGetCfg)
-	api.Post("/config", apiUpdateConfig)
-	api.Post("/config/test-postgres", apiTestPostgres)
-	api.Post("/config/test-dragonfly", apiTestDragonfly)
+	api.Post("/config", apiUpdCfg)
+	api.Post("/config/test-postgres", apiTestPgDbConn)
+	api.Post("/config/test-cachedb", apiTestCacheDbConn)
 
 	// --- База Данных ---
-	api.Get("/db/export", apiExportDB)
-	api.Get("/db/export/xlsx", apiExportDBXlsx)
+	api.Get("/db/export", apiExportPgDb)
+	api.Get("/db/export/xlsx", apiExportPgDbXlsx)
 
 	// --- Диагностика ---
-	api.Post("/diagnose/run", apiRunDiagnose)
-	api.Get("/diagnose/pdf", apiDownloadDiagnosePDF)
-	api.Get("/diagnose/archive", apiDownloadDiagnoseArchive)
+	api.Post("/diagnose/run", apiRunDiag)
+	api.Get("/diagnose/pdf", apiDownloadDiagPDF)
+	api.Get("/diagnose/archive", apiDownloadDiagArch)
 
 	// --- Справка ---
 	api.Get("/help", apiGetHelp)
 	api.Get("/about", apiGetAbout)
 
-	// Эндпоинт для Zabbix (п.18.6 ТЗ)
+	// Эндпоинт для Zabbix
 	api.Get("/metrics", apiGetMetrics)
 }
 
-// apiGetProcesses возвращает список всех процессов
-func apiGetProcesses(c *fiber.Ctx) error {
-	list := processes.GetAllProcesses()
+// apiGetAllProcs возвращает список всех процессов
+func apiGetAllProcs(c *fiber.Ctx) error {
+	list := processes.GetAllProcs()
 	return c.JSON(list)
 }
 
-// apiAddProcess добавляет новый процесс в конфигурацию и сохраняет ее
-func apiAddProcess(c *fiber.Ctx) error {
-	var p models.ProcessConfig
+// apiAddProc добавляет новый процесс в конфигурацию и сохраняет ее
+func apiAddProc(c *fiber.Ctx) error {
+	var p models.ProcCfg
 	if err := c.BodyParser(&p); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "некорректный формат данных"})
 	}
@@ -66,7 +66,7 @@ func apiAddProcess(c *fiber.Ctx) error {
 		p.ID = utils.GenerateID()
 	}
 
-	err := processes.AddOrUpdateProcess(p)
+	err := processes.AddOrUpdateProc(p)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -74,28 +74,28 @@ func apiAddProcess(c *fiber.Ctx) error {
 	return c.JSON(p)
 }
 
-// apiDeleteProcess удаляет процесс (и останавливает, если запущен)
-func apiDeleteProcess(c *fiber.Ctx) error {
+// apiDelProc удаляет процесс (и останавливает, если запущен)
+func apiDelProc(c *fiber.Ctx) error {
 	id := c.Params("id")
 
 	// Если запущен, сначала останавливаем
-	if p, ok := processes.GetProcess(id); ok && p.Status == models.StatusRunning {
-		_ = processes.Manager.StopProcess(id)
+	if p, ok := processes.GetProc(id); ok && p.Status == models.StatusRunning {
+		_ = processes.Manager.StopProc(id)
 	}
 
-	err := processes.RemoveProcess(id)
+	err := processes.RemoveProc(id)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.SendStatus(fiber.StatusOK)
 }
 
-// apiProcessAction запускает или останавливает процесс
-func apiProcessAction(c *fiber.Ctx) error {
+// apiProcAction запускает или останавливает процесс
+func apiProcAction(c *fiber.Ctx) error {
 	id := c.Params("id")
 	action := c.Query("action") // start или stop
 
-	p, ok := processes.GetProcess(id)
+	p, ok := processes.GetProc(id)
 	if !ok {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "процесс не найден"})
 	}
@@ -103,9 +103,9 @@ func apiProcessAction(c *fiber.Ctx) error {
 	var err error
 	switch action {
 	case "start":
-		err = processes.Manager.StartProcess(p)
+		err = processes.Manager.StartProc(p)
 	case "stop":
-		err = processes.Manager.StopProcess(id)
+		err = processes.Manager.StopProc(id)
 	default:
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "неизвестное действие"})
 	}
@@ -117,24 +117,24 @@ func apiProcessAction(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
-// apiGroupProcessAction запускает, останавливает или удаляет ВСЕ процессы
-func apiGroupProcessAction(c *fiber.Ctx) error {
+// apiAllProcsAction запускает, останавливает или удаляет ВСЕ процессы
+func apiAllProcsAction(c *fiber.Ctx) error {
 	action := c.Query("action")
-	procs := processes.GetAllProcesses()
+	procs := processes.GetAllProcs()
 
 	for _, p := range procs {
 		switch action {
 		case "start":
 			if p.Status != models.StatusRunning {
-				_ = processes.Manager.StartProcess(p)
+				_ = processes.Manager.StartProc(p)
 			}
 		case "stop":
 			if p.Status == models.StatusRunning {
-				_ = processes.Manager.StopProcess(p.ID)
+				_ = processes.Manager.StopProc(p.ID)
 			}
 		case "delete":
 			if p.Status == models.StatusRunning {
-				_ = processes.Manager.StopProcess(p.ID)
+				_ = processes.Manager.StopProc(p.ID)
 			}
 			_ = processes.RemoveProcess(p.ID)
 		}
@@ -147,14 +147,14 @@ func apiGetCfg(c *fiber.Ctx) error {
 	return c.JSON(config.GetCfg())
 }
 
-// apiUpdateConfig сохраняет новую конфигурацию
-func apiUpdateConfig(c *fiber.Ctx) error {
+// apiUpdCfg сохраняет новую конфигурацию
+func apiUpdCfg(c *fiber.Ctx) error {
 	var cfg models.Config
 	if err := c.BodyParser(&cfg); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "некорректный формат конфигурации"})
 	}
 
-	err := config.UpdateConfig(&cfg)
+	err := config.UpdCfg(&cfg)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -162,26 +162,26 @@ func apiUpdateConfig(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
-// apiTestPostgres временно проверяет коннект к БД по переданным параметрам
-func apiTestPostgres(c *fiber.Ctx) error {
-	var cfg models.PostgreSQLConfig
+// apiTestPgConn временно проверяет коннект к БД по переданным параметрам
+func apiTestPgConn(c *fiber.Ctx) error {
+	var cfg models.PgDbCfg
 	if err := c.BodyParser(&cfg); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "некорректный формат"})
 	}
-	err := data.PingPostgres(&cfg)
+	err := data.PingPgDb(&cfg)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.JSON(fiber.Map{"status": "ok"})
 }
 
-// apiTestDragonfly временно проверяет коннект к кэшу
-func apiTestDragonfly(c *fiber.Ctx) error {
-	var cfg models.DragonflyDBConfig
+// apiTestCacheDbConn временно проверяет коннект к кэшу
+func apiTestCacheDbConn(c *fiber.Ctx) error {
+	var cfg models.CacheDbCfg
 	if err := c.BodyParser(&cfg); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "некорректный формат"})
 	}
-	err := data.PingDragonfly(&cfg)
+	err := data.PingCacheDb(&cfg)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -189,8 +189,8 @@ func apiTestDragonfly(c *fiber.Ctx) error {
 }
 
 
-// apiExportDB выгрузка данных из БД в JSON.
-func apiExportDB(c *fiber.Ctx) error {
+// apiExportPgDb выгрузка данных из итоговой БД в JSON.
+func apiExportPgDb(c *fiber.Ctx) error {
 	if data.PgPool == nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "БД отключена"})
 	}
@@ -221,8 +221,8 @@ func apiExportDB(c *fiber.Ctx) error {
 	return c.JSON(results)
 }
 
-// apiExportDBXlsx потоковая выгрузка данных из БД в формате Excel
-func apiExportDBXlsx(c *fiber.Ctx) error {
+// apiExportPgDbXlsx потоковая выгрузка данных из итоговой БД в формате Excel
+func apiExportPgDbXlsx(c *fiber.Ctx) error {
 	if data.PgPool == nil {
 		return c.Status(fiber.StatusServiceUnavailable).SendString("БД отключена")
 	}
@@ -269,7 +269,7 @@ func apiExportDBXlsx(c *fiber.Ctx) error {
 	return c.SendStream(buf)
 }
 
-func apiRunDiagnose(c *fiber.Ctx) error {
+func apiRunDiag(c *fiber.Ctx) error {
 	report, err := diagnose.RunDiag()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
@@ -277,7 +277,7 @@ func apiRunDiagnose(c *fiber.Ctx) error {
 	return c.JSON(report)
 }
 
-func apiDownloadDiagnosePDF(c *fiber.Ctx) error {
+func apiDownloadDiagPDF(c *fiber.Ctx) error {
 	report, err := diagnose.RunDiag()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
@@ -293,7 +293,7 @@ func apiDownloadDiagnosePDF(c *fiber.Ctx) error {
 	return c.Download(pdfPath)
 }
 
-func apiDownloadDiagnoseArchive(c *fiber.Ctx) error {
+func apiDownloadDiagArch(c *fiber.Ctx) error {
 	report, _ := diagnose.RunDiag() // Игнорируем ошибку, так как pdf мы все равно соберем
 	
 	pdfPath := "Venera_Diagnostic_Report.pdf"
@@ -301,7 +301,7 @@ func apiDownloadDiagnoseArchive(c *fiber.Ctx) error {
 	defer os.Remove(pdfPath)
 
 	gzPath := "Venera_Diagnostic_Archive.tar.gz"
-	err := diagnose.CreateArchiveGZ(pdfPath, gzPath)
+	err := diagnose.CreateArchGZ(pdfPath, gzPath)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	}
@@ -324,16 +324,16 @@ func apiGetHelp(c *fiber.Ctx) error {
 
 func apiGetAbout(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
-		"app_name": "Venera Collector",
+		"app_name": "Venera",
 		"version": "1.0.0",
-		"developer": "Venera Team",
+		"developer": "PineCode Lab",
 		"build_time": "2026-07-21",
 		"license": "Проприетарная (Для внутреннего использования)",
-		"copyright": "© 2026 Venera Team. Все права защищены.",
+		"copyright": "© 2026 PineCode Lab. Все права защищены.",
 	})
 }
 
-// apiGetMetrics отдает метрики системы и процессов в формате JSON для Zabbix (п.18.6 ТЗ)
+// apiGetMetrics отдает метрики системы и процессов в формате JSON для Zabbix
 func apiGetMetrics(c *fiber.Ctx) error {
 	stats := metrics.CollectAllStats()
 	return c.JSON(stats)
